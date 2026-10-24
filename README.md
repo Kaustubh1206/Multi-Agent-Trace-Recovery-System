@@ -65,7 +65,25 @@ No Git bundle is needed.
 You are the customer in manual mode. `--task 69` validates the train ID and initial fixture;
 it does **not** provide hidden task instructions to agents. Supply your own request and
 identity facts. Omit `--task` for an ordinary manual conversation. `/quit` closes the session.
-API mode incurs provider costs; no local model weights are downloaded.
+The example configuration uses Groq with `openai/gpt-oss-120b`. Put your Groq key in
+`OPENAI_API_KEY`, because the app uses an OpenAI-compatible client. To configure an
+existing `.env` without replacing your key:
+
+```dotenv
+OPENAI_BASE_URL=https://api.groq.com/openai/v1
+RETAIL_MODEL=openai/gpt-oss-120b
+RETAIL_OUTPUT_METHOD=json
+```
+
+`json` asks for JSON text and validates it locally against the same Pydantic schema.
+It avoids provider-specific native schema restrictions. `json_schema` optionally uses
+native, non-strict JSON Schema first and falls back on format-specific rejections.
+Invalid responses never bypass action guards. Authentication, rate limits and unrelated
+bad requests are not treated as schema failures.
+
+API usage is subject to your provider's plan and quotas; no local model weights are downloaded.
+A rejected request now shows its HTTP status, error code/parameter and sanitized message,
+without printing keys, request headers/bodies or failed generations.
 
 Offline tests/demo require no API key:
 

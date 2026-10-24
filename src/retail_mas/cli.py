@@ -23,7 +23,7 @@ def main():
     logger.disable("tau2")
     from .data_loader import RetailDataset
     from .graph import build_graph
-    from .models import AgentModels
+    from .models import AgentModels, describe_model_error
     from .tools import RetailAdapter
 
     dataset = RetailDataset()
@@ -58,8 +58,8 @@ def main():
     except (EOFError, KeyboardInterrupt):
         print("\nSession closed.")
     except Exception as error:
-        # Avoid printing provider payloads/URLs, which may contain sensitive configuration.
-        print(f"Session stopped ({type(error).__name__}). No further actions will run.")
+        print(f"Session stopped: {describe_model_error(error)}")
+        print("No further actions will run.")
         raise SystemExit(1) from None
 
 

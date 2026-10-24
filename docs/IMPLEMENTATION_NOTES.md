@@ -104,6 +104,17 @@ for a new customer turn; the CLI and test runner do this automatically.
 - Python is currently constrained to 3.12: the pinned package imports `audioop` transitively,
   which is removed in Python 3.13. The observed deprecation warning is upstream.
 
+## API compatibility
+
+The model factory explicitly uses Chat Completions. `RETAIL_OUTPUT_METHOD=json` requests
+JSON text and validates it locally, without sending provider-specific schema parameters.
+`json_schema` uses a non-strict dictionary schema, preserving optional fields and variable
+retail-tool argument dictionaries; it falls back for format rejections, including Groq's
+`json_validate_failed`. API authentication, network and unrelated request errors propagate.
+The CLI displays a sanitized status/code/parameter/message, excluding response generations
+and request bodies. Mock HTTP transport tests exercise the actual LangChain/OpenAI SDK
+request and error paths without credentials or paid calls. These are not live Groq runs.
+
 ## Evaluation status
 
 Offline tests invoke the actual LangGraph graph with scripted model outputs, real fresh DBs

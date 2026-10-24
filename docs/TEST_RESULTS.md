@@ -15,14 +15,20 @@ uv run python -m tests.demo
 Observed final pytest output:
 
 ```text
-.....................................................                    [100%]
-53 passed, 1 warning in 18.24s
+...........................................................              [100%]
+59 passed, 1 warning in 17.58s
 ```
 
 The warning is the pinned upstream's deprecated `audioop` import. Ruff lint and format
 checks passed. `git diff --check` passed. The entry-point help command and cached-asset
 verification command ran successfully. Checkpoint resumption was tested with strict
 MessagePack type checking and an explicit allowlist for the project's output schemas.
+
+The API compatibility tests use the real LangChain/OpenAI SDK with intercepted HTTP
+responses. They reproduce a Groq `json_validate_failed` HTTP 400, check bounded JSON
+fallback, verify JSON-text mode omits native schema parameters, and ensure unrelated bad
+requests are not retried as format errors. Diagnostic tests check secret/URL redaction
+and exclusion of failed generations. No live Groq request was made in these tests.
 
 ## Source-backed offline pilots actually run
 
