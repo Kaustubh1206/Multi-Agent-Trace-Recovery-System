@@ -4,7 +4,16 @@ from langchain_core.messages import HumanMessage
 from retail_mas.nodes import TRANSFER_MESSAGE
 from retail_mas.tools import RetailAdapter
 
-from .support import cancellation_steps, plan, proposal, resume, reviews, session, tool
+from .support import (
+    after_write,
+    cancellation_steps,
+    plan,
+    policy_review,
+    proposal,
+    resume,
+    session,
+    tool,
+)
 
 
 def test_read_only_real_order_is_unchanged(adapter, dataset):
@@ -17,6 +26,7 @@ def test_read_only_real_order_is_unchanged(adapter, dataset):
         ),
         ("order", tool("get_order_details", order_id="#W2417020")),
         ("order", {"kind": "complete"}),
+        policy_review(),
         ("decision", {"kind": "respond", "text": "Your laptop order #W2417020 is pending."}),
     ]
     _, agents, _, result = session(
@@ -36,7 +46,7 @@ def test_cancellation_real_interrupt(adapter, dataset, answer):
     graph, agents, config, result = session(
         adapter,
         dataset,
-        cancellation_steps(),
+        cancellation_steps(confirmed=answer == "yes"),
         "I'm Emma Smith ZIP 10192, no email. Cancel #W2417020: no longer needed.",
         "69",
     )
@@ -57,7 +67,7 @@ def test_cancellation_real_interrupt(adapter, dataset, answer):
 
 def test_ambiguous_confirmation_goes_back_to_customer_without_write(adapter, dataset):
     steps = [
-        *cancellation_steps(),
+        *cancellation_steps(confirmed=False),
         plan(),
         ("order", {"kind": "ask", "text": "Please clarify the requested action."}),
     ]
@@ -81,6 +91,7 @@ def test_task_69_return_falls_back_to_cancel(adapter, dataset, record_pilot):
         ("order", tool("get_user_details", user_id="emma_smith_8564")),
         ("order", tool("get_order_details", order_id="#W2417020")),
         ("order", {"kind": "complete"}),
+        policy_review(),
         (
             "decision",
             {
@@ -91,11 +102,12 @@ def test_task_69_return_falls_back_to_cancel(adapter, dataset, record_pilot):
         plan(),
         ("order", tool("get_order_details", order_id="#W2417020")),
         ("order", {"kind": "complete"}),
+        policy_review(),
         (
             "decision",
             proposal("cancel_pending_order", order_id="#W2417020", reason="no longer needed"),
         ),
-        *reviews(),
+        *after_write(),
     ]
     graph, agents, config, result = session(
         adapter,
@@ -133,6 +145,7 @@ def test_exchange_preferences_and_single_multi_item_operation(
         ("order", tool("get_product_details", product_id="4896585277")),
         ("order", tool("get_user_details", user_id="yusuf_rossi_9620")),
         ("order", {"kind": "complete"}),
+        policy_review(),
         (
             "decision",
             proposal(
@@ -143,7 +156,7 @@ def test_exchange_preferences_and_single_multi_item_operation(
                 payment_method_id="credit_card_9513926",
             ),
         ),
-        *reviews(),
+        *after_write(),
     ]
     original = adapter.snapshot()
     graph, agents, config, result = session(
@@ -186,6 +199,7 @@ def test_task_47_wrong_reference_requires_customer_correction(adapter, dataset, 
         ("order", tool("get_order_details", order_id="#W9502127")),
         ("order", tool("calculate", expression="622.12 + 473.43")),
         ("order", {"kind": "complete"}),
+        policy_review(),
         (
             "decision",
             proposal(
@@ -195,11 +209,12 @@ def test_task_47_wrong_reference_requires_customer_correction(adapter, dataset, 
                 payment_method_id="paypal_2433177",
             ),
         ),
-        *reviews(),
+        *after_write(),
         plan("inquiry"),
         ("order", tool("get_order_details", order_id="#W9502127")),
         ("order", tool("calculate", expression="2623.69 - 1095.55")),
         ("order", {"kind": "complete"}),
+        policy_review(),
         (
             "decision",
             {
@@ -224,7 +239,8 @@ def test_task_47_wrong_reference_requires_customer_correction(adapter, dataset, 
     assert adapter.write_count == 1
     query = "How much is the refund, and how much did I pay for the remaining items? Can it arrive within 3 days?"
     result = graph.invoke(
-        {"customer_query": query, "messages": [HumanMessage(content=query)]}, config
+        {"customer_query": query, "messages": [HumanMessage(content=query)], "new_request": True},
+        config,
     )
     assert "1,528.14" in result["response"]
     assert adapter.write_count == 1
@@ -239,6 +255,7 @@ def test_task_84_changed_item_and_payment_needs_fresh_consent(adapter, dataset, 
             ("order", tool("get_order_details", order_id="#W9571698")),
             ("order", tool("get_user_details", user_id="chen_silva_7485")),
             ("order", {"kind": "complete"}),
+            policy_review(),
         ]
 
     steps = [
@@ -257,7 +274,6 @@ def test_task_84_changed_item_and_payment_needs_fresh_consent(adapter, dataset, 
                 payment_method_id="credit_card_1565124",
             ),
         ),
-        *reviews(),
         plan(),
         *order_reads(),
         (
@@ -269,7 +285,7 @@ def test_task_84_changed_item_and_payment_needs_fresh_consent(adapter, dataset, 
                 payment_method_id="gift_card_7250692",
             ),
         ),
-        *reviews(),
+        *after_write(),
     ]
     graph, agents, config, result = session(
         adapter,
@@ -310,7 +326,7 @@ def test_task_50_transfer_uses_real_tool(adapter, dataset, monkeypatch, record_p
             "identity",
             tool("find_user_id_by_name_zip", first_name="Chen", last_name="Smith", zip="32278"),
         ),
-        ("order", {"kind": "complete"}),
+        policy_review(),
         (
             "decision",
             {
@@ -348,7 +364,7 @@ def test_sequential_tasks_do_not_share_database_or_consent(dataset):
     graph, _, config, result = session(
         second,
         dataset,
-        cancellation_steps(),
+        cancellation_steps(confirmed=False),
         "Emma Smith ZIP 10192, no email. Cancel #W2417020, no longer needed.",
         "69",
     )
@@ -376,3 +392,56 @@ def test_step_budget_prevents_unbounded_model_loops(adapter, dataset):
     assert "budget" in result["response"]
     assert not agents.steps
     assert adapter.write_count == 0
+
+
+def test_graph_has_only_the_seven_proposal_agents(adapter, dataset):
+    from retail_mas.graph import build_graph
+
+    from .support import ScriptedAgents
+
+    graph = build_graph(adapter, ScriptedAgents([]), dataset.policy)
+    assert set(graph.get_graph().nodes) - {"__start__", "__end__"} == {
+        "supervisor",
+        "identity",
+        "order",
+        "policy",
+        "decision",
+        "action_payment",
+        "verification",
+    }
+
+
+def test_confirmation_resume_does_not_repeat_planning_or_proposal(adapter, dataset):
+    graph, agents, config, _ = session(
+        adapter,
+        dataset,
+        cancellation_steps(),
+        "Emma Smith ZIP 10192, no email. Cancel #W2417020, no longer needed.",
+    )
+    before = [role for role, _, _ in agents.contexts]
+    assert before == ["supervisor", "identity", "order", "order", "policy", "decision"]
+    final = resume(graph, config, "yes")
+    assert [role for role, _, _ in agents.contexts] == before + ["action_payment", "verification"]
+    assert final["verification_result"]["matches_confirmed_action"]
+    assert adapter.write_count == 1
+
+
+def test_verification_cannot_be_approved_over_a_failed_db_check(adapter, dataset, monkeypatch):
+    original_verify = adapter.verify
+
+    def failed_check(action, result):
+        checked = original_verify(action, result)
+        return {**checked, "matches_confirmed_action": False}
+
+    monkeypatch.setattr(adapter, "verify", failed_check)
+    graph, _, config, _ = session(
+        adapter,
+        dataset,
+        cancellation_steps(),
+        "Emma Smith ZIP 10192, no email. Cancel #W2417020, no longer needed.",
+    )
+    final = resume(graph, config, "yes")
+    assert "committed, but verification did not pass" in final["response"]
+    assert adapter.write_count == 1
+    assert not final["verification_result"]["matches_confirmed_action"]
+    assert not final["verification_result"]["verified"]

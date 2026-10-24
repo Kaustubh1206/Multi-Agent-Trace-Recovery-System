@@ -41,8 +41,9 @@ The CLI loads a train task only to validate its ID and initial fixture. The task
 user instructions and evaluation criteria stay in the original pinned assets and test harness.
 All six pilots have null initial state. Non-null overrides/history explicitly fail closed.
 
-Identity, Order and Decision use structured agent steps; Policy and Payment have independent
-structured finding schemas and prompts. They may share a configured model, while keeping
+The graph contains exactly the seven proposal roles: Supervisor, Identity, Order, Policy,
+Decision/Confirmation, Action/Payment and Verification. Identity, Order and Decision use
+structured agent steps; Policy, Action/Payment and Verification have independent finding schemas. They may share a configured model, while keeping
 independent responsibilities and controlled handoffs. A model is never the authority for a
 Boolean authorization or confirmation rule.
 
@@ -50,16 +51,32 @@ Protected reads check the adapter's authenticated identity, never an agent-suppl
 Order ownership is checked before the official result is returned. One `RLock` serializes
 retail calls. Tool steps are separate from customer-response steps.
 
-A proposal runs signature/type/policy validation and official preconditions on a disposable
-copy. This preflight is not an executed customer action. The exact canonical arguments and
-financial consequences are shown to the customer. An exact affirmative reply binds consent
-to an action fingerprint including relevant user/order/product state. No/ambiguous/changed
-replies write nothing. Changed choices restart planning and require a new summary/approval.
+The Supervisor plans once per new customer request and routes Identity, Order and Policy
+according to shared results. Authentication precedes protected reads. Policy assesses the
+request and observed order facts before Decision proposes an exact operation. Read-only
+responses and unsupported transfers finish at Decision.
 
-The executor independently rechecks identity, ownership, eligibility, parameters, freshness,
-exact approval and duplicate commit. It executes the unchanged official API on another copy
-and commits that copy only on success. Failed execution consumes approval. This is an
-in-memory transaction boundary over the simulated DB, not a durable external-payment ledger.
+Decision runs signature/type/policy validation and official preconditions on a disposable
+copy. This is not an executed customer action. It saves the exact canonical arguments and
+financial consequences before pausing for approval. Confirmation uses a second Decision
+invocation, so resuming does not repeat an LLM call or tool read. No separate read, preflight,
+customer-input, confirmation, transfer or response nodes exist.
+
+An affirmative reply binds consent to the exact action and relevant user/order/product state.
+No/unclear/changed replies write nothing. Changed choices restart planning and require fresh
+approval. Action/Payment reviews the payment facts and calls the deterministic executor,
+which independently rechecks authorization, eligibility, freshness, approval and duplication.
+The unchanged official API runs on a copy; only successful writes commit that copy.
+
+Verification then re-reads the affected record and compares the actual DB with the expected
+result of the confirmed operation, computed during disposable preflight. This expectation
+comes from the customer's approved request, never from benchmark labels. Its LLM review
+cannot override a failed deterministic comparison. If a committed change cannot be verified,
+the response explicitly says so and does not retry the write. This is ordinary business
+verification, not benchmark scoring, tracing, replay, recovery or causal adjudication.
+
+All sessions and action records are in memory. Direct graph callers set `new_request=True`
+for a new customer turn; the CLI and test runner do this automatically.
 
 ## Verified source nuances and limits
 

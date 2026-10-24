@@ -12,11 +12,20 @@ from tau2.domains.retail.tools import RetailTools
 from .objects import PendingAction, ToolCall
 from .policy import IDENTITY_TOOLS, ORDER_TOOLS, check_action, explicit_answer
 
-READ_SCOPES = {"identity": IDENTITY_TOOLS, "order": ORDER_TOOLS, "payment": {"get_user_details"}}
+READ_SCOPES = {
+    "identity": IDENTITY_TOOLS,
+    "order": ORDER_TOOLS,
+    "action_payment": {"get_user_details"},
+    "verification": {"get_user_details", "get_order_details"},
+}
 
 
 def plain(value):
     return value.model_dump(mode="json") if isinstance(value, BaseModel) else value
+
+
+def database_hash(db):
+    return hashlib.sha256(json.dumps(plain(db), sort_keys=True).encode()).hexdigest()
 
 
 class RetailAdapter:
@@ -103,6 +112,7 @@ class RetailAdapter:
             action = PendingAction(
                 call=call.model_copy(deep=True),
                 snapshot_hash=self._snapshot_hash(call),
+                expected_db_hash=database_hash(trial.db),
                 financial_effect=effect,
             )
             self._prepared = action.model_copy(deep=True)
@@ -189,3 +199,20 @@ class RetailAdapter:
     def transfer(self, summary: str):
         with self._lock:
             return self._tools.transfer_to_human_agents(summary=summary)
+
+    def verify(self, action: PendingAction, execution_result: dict) -> dict:
+        """Compare actual DB with this customer's preflighted action, not task labels."""
+        with self._lock:
+            args = action.call.arguments
+            target = (
+                {"order_id": args["order_id"]}
+                if "order_id" in args
+                else {"user_id": args["user_id"]}
+            )
+            name = "get_order_details" if "order_id" in args else "get_user_details"
+            observed = self.read("verification", ToolCall(name=name, arguments=target))
+            matches = (
+                observed == execution_result
+                and database_hash(self._tools.db) == action.expected_db_hash
+            )
+            return {"matches_confirmed_action": matches, "record": observed}

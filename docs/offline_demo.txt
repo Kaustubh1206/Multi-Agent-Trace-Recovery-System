@@ -1,11 +1,11 @@
 OFFLINE DEMO: scripted LLM outputs, official tools; no simulated-user benchmark score.
 Customer: I'm Emma Smith, ZIP 10192; I cannot remember email. Cancel #W2417020 because it is no longer needed.
-Specialists: supervisor -> identity -> order -> order -> decision -> policy -> payment
 MAS: Proposed cancel_pending_order: {"order_id": "#W2417020", "reason": "no longer needed"}
 Financial consequences: {"refunds": [{"amount": 2674.4, "payment_method_id": "gift_card_8541487", "transaction_type": "refund"}], "timing": "Gift card immediately; other methods 5\u20137 business days"}.
 Proceed? Reply yes or no.
 Writes before confirmation: 0
 Customer: yes
 MAS: cancel_pending_order completed for #W2417020. Status: cancelled.
+Specialists: supervisor -> identity -> order -> order -> policy -> decision -> action_payment -> verification
 Writes after confirmation: 1
 Gift-card balance: 2736.4

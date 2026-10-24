@@ -1,5 +1,5 @@
 """Conditional routing stays deterministic and visible."""
 
 
-def next_node(state):
-    return state["next_node"]
+def next_agent(state):
+    return state["next_agent"]

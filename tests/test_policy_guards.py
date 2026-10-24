@@ -290,3 +290,13 @@ def test_known_upstream_multi_item_modification_defect_fails_closed(adapter):
         )
     assert adapter.snapshot() == db
     assert adapter.write_count == 0
+
+
+def test_verification_reads_actual_committed_database(adapter):
+    authenticate_emma(adapter)
+    action = adapter.prepare(cancellation())
+    adapter.confirm(action.fingerprint, "yes")
+    result = adapter.execute(action)
+    assert adapter.verify(action, result)["matches_confirmed_action"]
+    assert not adapter.verify(action, {**result, "status": "pending"})["matches_confirmed_action"]
+    assert adapter.write_count == 1

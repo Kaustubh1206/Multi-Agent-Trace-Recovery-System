@@ -15,8 +15,8 @@ uv run python -m tests.demo
 Observed final pytest output:
 
 ```text
-.................................................                        [100%]
-49 passed, 1 warning in 16.12s
+.....................................................                    [100%]
+53 passed, 1 warning in 18.24s
 ```
 
 The warning is the pinned upstream's deprecated `audioop` import. Ruff lint and format
@@ -41,12 +41,16 @@ is preserved in `offline_pilot_results.json`. Its ENV reward was 1.0 for these s
 trajectories. No communication/NL assertion reward or full benchmark score was computed.
 For task 50, unchanged DB alone is insufficient, so a separate assertion verifies transfer.
 
+The graph-node test checks exactly the seven proposal roles. Confirmation resumption does
+not repeat planning or the proposal. Runtime Verification compares the committed DB with
+the confirmed operation; a failed deterministic check cannot be approved by its LLM.
+
 Additional tests cover authenticated read-only inquiry without mutation; blocked protected
 activity without auth; wrong-customer references; exact approval and stale/tampered actions;
 no/ambiguous approval; item/product confusion, variant availability, quantities and payment
 rules; all seven retail write APIs; the pinned pending-item defect; unchanged unrelated
 records; duplicate commit rejection; independent sequential tasks; agent step budget;
-structured-output fallback failures; and oracle isolation across all six role contexts.
+structured-output fallback failures; and oracle isolation across all seven role contexts.
 
 ## Reproducible example
 
@@ -56,7 +60,7 @@ subpath with a manual-style request, scripted specialist outputs and official to
 ```text
 Customer: I'm Emma Smith, ZIP 10192; I cannot remember email.
           Cancel #W2417020 because it is no longer needed.
-Specialists: Supervisor → Identity → Order → Decision → Policy → Payment
+Specialists: Supervisor → Identity → Order → Policy → Decision → Action/Payment → Verification
 MAS: Proposed cancel_pending_order for #W2417020, reason no longer needed.
      Refund: $2674.40 to gift_card_8541487 immediately. Proceed? Reply yes or no.
 Writes before confirmation: 0

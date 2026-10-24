@@ -20,12 +20,12 @@ def main():
     print("OFFLINE DEMO: scripted LLM outputs, official tools; no simulated-user benchmark score.")
     print("Customer:", query)
     graph, agents, config, result = session(adapter, dataset, cancellation_steps(), query, "69")
-    print("Specialists:", " -> ".join(role for role, _, _ in agents.contexts))
     print("MAS:", result["__interrupt__"][0].value["message"])
     print("Writes before confirmation:", adapter.write_count)
     print("Customer: yes")
     result = resume(graph, config, "yes")
     print("MAS:", result["response"])
+    print("Specialists:", " -> ".join(role for role, _, _ in agents.contexts))
     print("Writes after confirmation:", adapter.write_count)
     print(
         "Gift-card balance:",

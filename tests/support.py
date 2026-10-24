@@ -26,15 +26,22 @@ def plan(intent="change"):
     return ("supervisor", {"intent": intent, "purpose": "Handle the customer's current request"})
 
 
-def reviews():
+def policy_review():
+    return ("policy", {"allowed": True, "reason": "Request is eligible under the observed policy"})
+
+
+def after_write():
     return [
-        ("policy", {"allowed": True, "reason": "Validated status, ownership and parameters"}),
         (
-            "payment",
+            "action_payment",
             {
-                "reason": "Official tool preconditions passed",
-                "customer_explanation": "Use the validated financial consequences",
+                "reason": "Payment checks passed",
+                "customer_explanation": "Use the confirmed payment method",
             },
+        ),
+        (
+            "verification",
+            {"verified": True, "reason": "Actual database matches the confirmed action"},
         ),
     ]
 
@@ -55,7 +62,11 @@ def session(adapter, dataset, steps, query, source_task_id=None):
     agents = ScriptedAgents(steps)
     graph = build_graph(adapter, agents, dataset.policy)
     config = {"configurable": {"thread_id": str(uuid4())}, "recursion_limit": 512}
-    update = {"messages": [HumanMessage(content=query)], "customer_query": query}
+    update = {
+        "messages": [HumanMessage(content=query)],
+        "customer_query": query,
+        "new_request": True,
+    }
     if source_task_id:
         update.update(source_task_id=source_task_id, scenario_id="offline-" + source_task_id)
     return graph, agents, config, graph.invoke(update, config)
@@ -76,7 +87,7 @@ def cancellation():
     return call("cancel_pending_order", order_id="#W2417020", reason="no longer needed")
 
 
-def cancellation_steps():
+def cancellation_steps(confirmed=True):
     return [
         plan(),
         (
@@ -85,6 +96,7 @@ def cancellation_steps():
         ),
         ("order", tool("get_order_details", order_id="#W2417020")),
         ("order", {"kind": "complete"}),
+        policy_review(),
         ("decision", {"kind": "propose", "tool": cancellation().model_dump()}),
-        *reviews(),
+        *(after_write() if confirmed else []),
     ]

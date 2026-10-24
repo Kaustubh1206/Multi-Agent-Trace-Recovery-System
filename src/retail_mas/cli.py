@@ -40,7 +40,11 @@ def main():
                 break
             if not query:
                 continue
-            update = {"messages": [HumanMessage(content=query)], "customer_query": query}
+            update = {
+                "messages": [HumanMessage(content=query)],
+                "customer_query": query,
+                "new_request": True,
+            }
             if args.task:
                 update.update(source_task_id=args.task, scenario_id=f"manual-{args.task}")
             result = graph.invoke(update, config)

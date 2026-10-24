@@ -39,9 +39,15 @@ class PaymentFinding(Output):
     customer_explanation: str
 
 
+class VerificationFinding(Output):
+    verified: bool
+    reason: str
+
+
 class PendingAction(Output):
     call: ToolCall
     snapshot_hash: str
+    expected_db_hash: str
     financial_effect: dict[str, Any] = Field(default_factory=dict)
 
     @property
@@ -49,9 +55,3 @@ class PendingAction(Output):
         # Binds approval to exact arguments AND the state used for the proposal.
         value = json.dumps(self.model_dump(), sort_keys=True)
         return hashlib.sha256(value.encode()).hexdigest()
-
-
-class HandoffResult(Output):
-    from_agent: str
-    to_agent: str
-    purpose: str
