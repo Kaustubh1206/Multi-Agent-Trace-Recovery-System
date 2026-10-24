@@ -1,0 +1,56 @@
+{
+  "repository": "https://github.com/sierra-research/tau2-bench",
+  "tag": "v1.0.1",
+  "commit": "fc0055dc4e0a316c3f83133267fbd6faaa770992",
+  "domain": "retail",
+  "license": "MIT",
+  "split_counts": {
+    "train": 74,
+    "test": 40,
+    "base": 114
+  },
+  "pilot_train_ids": [
+    "0",
+    "1",
+    "47",
+    "50",
+    "69",
+    "84"
+  ],
+  "assets": {
+    "db.json": {
+      "upstream_path": "data/tau2/domains/retail/db.json",
+      "source_url": "https://github.com/sierra-research/tau2-bench/blob/fc0055dc4e0a316c3f83133267fbd6faaa770992/data/tau2/domains/retail/db.json",
+      "sha256": "413a65160adbdb5fde0ffc0015c49b6d70250b10c18128de169b597af7766765"
+    },
+    "policy.md": {
+      "upstream_path": "data/tau2/domains/retail/policy.md",
+      "source_url": "https://github.com/sierra-research/tau2-bench/blob/fc0055dc4e0a316c3f83133267fbd6faaa770992/data/tau2/domains/retail/policy.md",
+      "sha256": "2c9652afbce57d6e087768d37cda64d31c53d50b3e3225cfdb791bac66466467"
+    },
+    "tasks.json": {
+      "upstream_path": "data/tau2/domains/retail/tasks.json",
+      "source_url": "https://github.com/sierra-research/tau2-bench/blob/fc0055dc4e0a316c3f83133267fbd6faaa770992/data/tau2/domains/retail/tasks.json",
+      "sha256": "8e03ebce7901bd6218e7a7dc3105faa9324091a68058f7fe61c65262868812e8"
+    },
+    "split_tasks.json": {
+      "upstream_path": "data/tau2/domains/retail/split_tasks.json",
+      "source_url": "https://github.com/sierra-research/tau2-bench/blob/fc0055dc4e0a316c3f83133267fbd6faaa770992/data/tau2/domains/retail/split_tasks.json",
+      "sha256": "ed0580ec52575b63fbf76568af42490da6ee7783ecb4aa81af46961291358f20"
+    }
+  },
+  "code": {
+    "src/tau2/domains/retail/tools.py": {
+      "sha256": "34f4fe9702d36f0dd4697700fbcd63d0cf5386e6eb8e7499aaa336243bad8750",
+      "source_url": "https://github.com/sierra-research/tau2-bench/blob/fc0055dc4e0a316c3f83133267fbd6faaa770992/src/tau2/domains/retail/tools.py"
+    },
+    "src/tau2/domains/retail/environment.py": {
+      "sha256": "5b819fb895a4ef49df71404c3d9678ab09e8578eec841b8ec9229c8f51e32405",
+      "source_url": "https://github.com/sierra-research/tau2-bench/blob/fc0055dc4e0a316c3f83133267fbd6faaa770992/src/tau2/domains/retail/environment.py"
+    },
+    "src/tau2/domains/retail/data_model.py": {
+      "sha256": "f5ad09590953855cc49d2ab2ad5c0594be408cae74d1500fb278e5a6bf2c50d6",
+      "source_url": "https://github.com/sierra-research/tau2-bench/blob/fc0055dc4e0a316c3f83133267fbd6faaa770992/src/tau2/domains/retail/data_model.py"
+    }
+  }
+}
