@@ -1,0 +1,249 @@
+REVISED RESEARCH AND IMPLEMENTATION PROPOSAL
+MA-TRACE
+Multi-Agent Tracking, Recovery, Attribution, and Consistent Evaluation
+An evidence-driven failure diagnosis, containment, and recovery framework for retail multi-agent workflows
+Project status: proposed system and experimental plan; no performance gains or novel results are claimed before evaluation.
+Abstract
+LLM-based multi-agent systems can fail when one agent passes an incorrect order identifier, misreads a policy, skips customer confirmation, or triggers an unsafe tool action. A later agent may produce the visible error even when the original mistake occurred in an earlier handoff. MA-TRACE proposes an independent reliability layer for a custom LangGraph retail multi-agent system. It records observable actions and state changes, links dependent decisions across agents, identifies likely failure causes, holds risky downstream actions, applies bounded recovery, and verifies the resulting database state before releasing the workflow. The initial application and evaluation will use the Retail domain of the τ-bench benchmark, complemented by deterministic fault-injection cases and independent expected-state checks. The intended contribution is not a new graph model by itself but a measurable, multi-agent-aware policy for dependency-based containment and verified selective recovery.
+1  Problem statement
+Design, implement, and experimentally evaluate MA-TRACE: a fault-attribution and safe-recovery layer for a retail LLM multi-agent system. When a task fails, MA-TRACE should identify which agent and step most likely introduced the fault, determine which downstream decisions are affected, prevent unsafe state changes, and repair only the necessary work where possible. Its outcome must be checked against task requirements and the actual simulated environment rather than accepted solely because an LLM says the answer looks correct.
+2  Research focus and contribution
+Retained from AgentTether and earlier MA-TRACE plan
+Retail-first multi-agent extension
+Transition-level traces and dependency-aware graph diagnosis
+Records include agent identity, handoff, consumed/produced state versions, and cross-agent links.
+Anomaly detection, concise repair guidance, repair memory
+Rank agent-step candidates; preserve resolved/unresolved failures across bounded repairs.
+Guarded runtime intervention and recovery
+Introduce a dependency-impact gate, idempotent simulated writes, and selective downstream replay.
+External benchmark and task outcomes
+Use τ-bench retail tasks, gold actions/state checks, and separately defined injected-fault labels.
+Scope decision: retail is the sole committed domain of this proposal. A second domain or stronger graph model is future work only after retail validation.
+3  Retail application and benchmark
+The application is an original LangGraph multi-agent workflow for customer support; it is not presented as an existing multi-agent implementation supplied by AgentTether. Its benchmark foundation is τ-bench Retail, which provides customer requests, a retail policy, tool APIs, a simulated order/customer database, and externally checkable outcomes. AgentTether evaluated 114 retail tasks, with 26 initially failed under its particular model/run setup; our initially failed set will be measured independently and must not be assumed to match 26.
+3.1  Agent responsibilities
+Agent
+Main responsibility
+Recorded handoff / evidence
+Supervisor
+Interpret intent, request missing information, route work
+Task ID, intent, next agent, state version
+Identity / Auth
+Find and authenticate the customer
+Customer ID, auth evidence; never trust supplied ID alone
+Order & Product
+Retrieve order, status, line items, product variants
+Order ID and data source/version
+Policy
+Check eligibility and required conditions
+Policy rule/version and explanation
+Decision
+Combine evidence, select allowed action, request consent
+Decision, preconditions, explicit confirmation
+Action / Payment
+Call the permitted simulator tool once, with safe keys
+Arguments, effect ID, before/after state
+Verification
+Validate expected action and final environment state
+Required steps passed, final state, errors
+3.2  Explainable retail workflow
+
+Figure 1. Conceptual retail task flow. Agent calls vary by intent; read-only tasks bypass mutating actions. Authentication and approval must precede applicable writes.
+Representative tasks include pending-order cancellation, modifying a pending order’s address/payment/item variant, returning or exchanging delivered items, changing a profile address, and retrieving information. The τ-bench Retail policy requires authentication and explicit user confirmation before consequential writes; some modification/exchange tools can be called only once. All actions in this project use simulated tools and databases, never actual customer payments.
+4  Overall MA-TRACE system architecture
+MA-TRACE runs beside the retail agents, rather than acting as a competing customer-facing agent. It receives execution evidence through structured LangGraph callbacks/middleware and checks state-changing actions at controlled boundaries.
+
+Figure 2. Proposed diagnosis-to-recovery loop. The benchmark’s expected-state oracle remains separate from the diagnostic and repair components.
+4.1  Core components, in plain language
+Plain-language component
+Purpose (technical term)
+Step record
+One observed decision, tool action, feedback, and state delta; analogous to an AgentTether Transition Unit (TU).
+Dependency map
+Connects earlier outputs to later actions across agents; a multi-agent extension inspired by the Critical Transition Graph (CTG).
+Failure checker
+Combines deterministic rules, run-local outlier scoring (optional Isolation Forest), and evidence-ranked candidate causes.
+Impact and safety gate
+Determines which dependent artifacts are suspect and blocks unsafe proposed writes until verified.
+Repair controller
+Selects minimal safe action: correct an input, refresh a tool result, rerun affected nodes, full retry, or escalate.
+Independent verifier
+Checks expected tool calls and the simulated database state; repair success is never LLM judgment alone.
+An HGT (Heterogeneous Graph Transformer) is the paper’s learned normal-behavior detector—not another name for the dependency graph. Because it requires substantial normal-trace training data, the first working prototype will use deterministic checks and a small run-local detector; HGT becomes an optional controlled enhancement, not a hidden prerequisite.
+5  Method: from failure to safe recovery
+5.1  Track observable evidence
+Every agent and tool event will receive a run_id, event_id, agent_id, step_id, time, tool name and arguments, source agent, destination agent, message or handoff ID, consumed artifact versions, produced artifacts, state reads/writes, status, checkpoint ID, and effect class (read versus state change). No access to hidden LLM chain-of-thought is assumed; “reasoning” refers only to observable messages and decisions.
+5.2  Build a cross-agent dependency map
+Construct edges only when supportable: a data edge when a later agent consumes an earlier result; a handoff/control edge when one agent delegates; a state edge from versioned reads/writes; and a tool-effect edge for committed external changes. Mere time order is not treated as proof of causation. Unknown dependencies are conservatively flagged.
+5.3  Detect and attribute
+Start with explicit checks for wrong order/customer IDs, missing authentication or consent, invalid policy conditions, stale versions, wrong tool arguments, duplicated writes, and unfinished required actions. Rank candidate agent+step pairs using violated checks and upstream dependencies. Run-local anomaly scoring may improve ranking; the diagnostic LLM can explain a candidate only when it cites event IDs. Distinguish the injection point, the earliest observable error, and the decisive cause: these may not be identical.
+5.4  Contain and choose a recovery
+Before a consequential write, the gate checks authorization, confirmation, policy preconditions, artifact validity, state version, and an operation ledger. If the required evidence is invalid or uncertain, hold the action; select correction, refresh, safe selective replay, or escalation. Keep unaffected observations and prevent a committed refund/cancellation from running twice. A checkpoint cannot reverse a previously committed side effect.
+5.5  Replay and verify
+If safe, fork from the last valid checkpoint, replace the faulty input or tool result, rerun only affected descendants, then check the proposed outcome with the benchmark oracle and deterministic state assertions. Commit a simulated write only once using an idempotency key and effect ledger. On rejection, retry within a fixed cap or escalate; record the result in repair memory.
+6  Worked example: failure across agents
+Event
+What happens
+1. Customer / Supervisor
+User asks to cancel ORDER-A. Supervisor mistakenly passes ORDER-B downstream.
+2. Order / Policy
+Order Agent retrieves ORDER-B; Policy Agent approves cancellation on its status.
+3. Safety check
+Action Agent is about to cancel ORDER-B. MA-TRACE detects mismatched authenticated request/order identity and holds the write.
+4. Attribution & impact
+Evidence points to the Supervisor handoff; its order artifact and dependent lookup, policy, decision are suspect.
+5. Recovery & oracle
+Restore ORDER-A, redo dependent lookups and policy check, re-obtain applicable consent, then simulate one correct action and verify database state.
+A successful result means the originally requested order was changed only when eligible and authorized, the incorrect order was untouched, and the user-facing response matches the final simulated state.
+7  Dataset, scenarios, ground truth, and failure injection
+7.1  Benchmark assets and test setup
+Use the published τ-bench Retail task descriptions, domain policy, simulator database, tool interfaces, and evaluators. Pin a benchmark repository revision; do not merge τ-bench and τ²-bench files without checking compatibility. For every task, reset to a frozen initial database, run the custom LangGraph MAS, persist its trace, and compare against benchmark task checks and final-state requirements. Retain read-only and successful controls to measure unnecessary interventions.
+7.2  Injected failure scenarios
+Failure family
+Controlled example
+Expected safe behavior
+Handoff corruption
+Supervisor passes wrong order_id
+Attribute handoff; re-fetch correct order; no incorrect write
+Stale evidence
+Order status/policy version outdated
+Refresh source; invalidate dependent decisions
+Wrong tool / arguments
+Action uses wrong order_id or variant
+Block/repair arguments; verify intended effect
+Skipped required step
+Missing authentication or explicit confirmation
+Pause and obtain evidence; never infer consent
+Agent disagreement
+Policy says ineligible but Decision says eligible
+Detect inconsistency; re-evaluate before action
+Duplicate effect
+Retry repeats cancellation/return call
+Idempotent ledger rejects repeated commit
+Tool failure
+Read API timeout or malformed response
+Bounded retry/fallback; escalate if unresolved
+Multi-fault case
+Wrong order ID and stale state together
+Identify interacting faults; avoid false repair acceptance
+7.3  Independent ground truth
+For each scenario, persist (a) task ID, initial database and policy snapshot, (b) expected required/forbidden tool actions and final-state assertions, (c) fault injection location and mechanism, (d) separately adjudicated decisive causal step(s), (e) permitted recovery and side-effect limits, and (f) exact validation logic. These labels live outside the diagnostic prompt. The injected step is not automatically the ground-truth root cause; replay or counterfactual tests should establish whether a fault materially changed the outcome.
+Proposed study scale: start with the published 114 retail benchmark tasks where practical, then construct approximately 40–60 reproducible fault cases plus clean controls. This is an implementation target, not a claim that the full suite or labels already exist. A fault that produces no observable task failure must not count in the recovery-success denominator.
+8  Evaluation design: seven measurable outcomes
+Metric
+How it will be measured
+Primary evidence
+1. Failure attribution
+Exact agent + step match; agent accuracy; top-k step recall
+Independent causal labels
+2. Recovery success
+Correct verified repairs / initially failed, eligible tasks
+Task and state oracle
+3. Containment
+Prevented unsafe dependent writes; false holds on legitimate work
+Gate log + action ledger
+4. State safety
+Forbidden state transitions and duplicate commits (count/rate)
+Deterministic database assertions
+5. Efficiency
+Extra turns/nodes, wall time, model tokens and API cost per verified recovery
+Trace and usage records
+6. Tool correctness
+Required tool/action/arguments precision against task expectations
+Gold actions + rule checks; DeepEval auxiliary
+7. Task completion
+Final required goal satisfied and user response faithful to final state
+Independent oracle; DeepEval qualitative check
+DeepEval is an additional qualitative/process evaluation aid, not the authority for causal truth, customer confirmation, duplicate refunds, or database correctness. Report false failure alarms, false holds, false repair acceptance, and evaluation denominators explicitly.
+8.1  Fair comparison and ablation
+Variant
+Why compare it
+B0  No repair
+Measures initial task success and natural failure rate.
+B1  Blind full retry
+Checks whether MA-TRACE is better than simply restarting with the same task.
+B2  AgentTether-style guidance
+Graph diagnosis + feedback/repair memory + full rerun, implemented on our retail MAS.
+B3  Cross-agent diagnosis + safety gate
+Adds dependency impact and write containment; no selective replay.
+B4  Full MA-TRACE
+Adds safe selective replay and independent verified resume.
+Ablations
+Remove cross-agent edges, containment, selective replay, or independent verifier one at a time.
+Keep task snapshots, injected perturbations, initial traces where possible, model settings, budgets, and maximum three repair attempts fixed across comparators. The published AgentTether single-agent percentages are literature context, not a directly comparable baseline for a custom MAS. A faithful original-code baseline is included only after code/API compatibility is confirmed.
+9  Research questions
+RQ1: Can cross-agent dependencies improve localization of a failure’s decisive agent and step compared with flat traces or within-agent-only diagnosis?
+RQ2: Can a dependency-aware safety gate reduce unsafe simulated state changes while keeping false blocking acceptably low?
+RQ3: Can selective recovery reduce repeated work without lowering independently verified task completion compared with full retry?
+RQ4: Does independent environment verification reduce mistakenly accepted repairs?
+10  Engineering stack and practical implementation plan
+Component
+Chosen implementation
+Application MAS
+Python, LangGraph StateGraph, typed shared state, controlled routing, specialist nodes/agents
+Retail environment
+Pinned τ-bench Retail fixtures, task policy, task checks, simulated customer/order/product tools
+Observability
+LangGraph callbacks/middleware, checkpointer, JSONL/SQLite event and artifact versions
+Dependency analysis
+NetworkX or typed adjacency lists; deterministic schema/state validators
+Diagnosis
+Rules + candidate ranking; optional per-run Isolation Forest; evidence-constrained LLM analyst
+Recovery
+Checkpoint fork, replayed frozen tool outputs, bounded policy, idempotency/effect ledger
+Evaluation / demo
+pytest, gold tool/state assertions, pandas, DeepEval (secondary), optional Streamlit visualization
+10.1  Development sequence (dependencies rather than deadlines)
+Build stage
+Minimum verifiable deliverable
+A  Retail MAS
+Agents complete a small mix of read-only and write tasks with explicit authorization and confirmation.
+B  Trace & map
+Agent/step/handoff/tool/state events persisted; dependency graph visible for one test.
+C  Ground truth & faults
+Frozen scenario fixtures, injected faults, independent gold actions and state assertions.
+D  Diagnose & contain
+Rank root-cause candidates and block an unsafe downstream write.
+E  Repair & verify
+Correct a bad handoff, replay affected steps, verify final DB, prevent duplicates.
+F  Experiment
+Run baselines/ablations, seven metrics, and summarize failure cases and limitations.
+11  Limitations and research honesty
+The design assumes instrumentation access to agent messages, handoffs, tools, and state versions. Some data dependencies may be missing; uncertain state will be treated conservatively. LangGraph checkpoint rollback does not reverse simulator side effects; write-once operation controls and independent verification are essential. LLM-based diagnosis is probabilistic, and an anomaly score is not proof of causation. Learned HGT detection requires training data beyond a minimal retail prototype. No production payments, refunds, or customer data operations will be used.
+The supplied anonymous AgentTether source mirror is referenced as an implementation resource, but its file-level README/source contents were not retrievable in this review environment. Consequently this proposal is grounded in the accessible AgentTether paper and verified τ-bench policy/repository; it does not claim a completed source-level audit, copied package structure, or guaranteed plug-and-play integration.
+12  Expected deliverables
+An operational LangGraph retail MAS; a structured trace and cross-agent dependency graph; a fault-injection scenario library; an evidence-based attribution and containment controller; a bounded recovery and verification loop; a visual trace-to-repair demonstration; and an empirical comparison showing both successes and failures against the defined baselines.
+Selected references and implementation resources
+1. Zhao, C., et al. (2026). AgentTether: Graph-Guided Diagnosis and Runtime Intervention for Reliable LLM Agent Operations. arXiv:2607.06273. https://arxiv.org/html/2607.06273v1
+2. Anonymous AgentTether source mirror (user-supplied implementation lead). https://anonymous.4open.science/r/AgentTether-9416/README.md
+3. Sierra Research. τ-bench: Code and Data for Tau-Bench, Retail environment, policies, tasks, and simulated tools. https://github.com/sierra-research/tau-bench
+4. Sierra Research. τ²-bench, Retail policy and domain structure (related newer benchmark release; verify version before mixing assets). https://github.com/sierra-research/tau2-bench
+5. MA-TRACE Capstone Project Proposal (previous six-page draft, October 2026). User-provided project proposal document.
+6. LangGraph documentation. Persistence, checkpoints, middleware, and graph orchestration. https://docs.langchain.com/oss/python/langgraph/persistence
+7. DeepEval documentation. Agent evaluation and tool-use metrics. https://deepeval.com/docs/metrics-introduction
+Terminology guide
+Paper terminology
+How it appears in the MA-TRACE explanation
+Important distinction
+Transition Unit (TU)
+Step record
+Captures one observable action/feedback cycle, plus acting agent.
+Critical Transition Graph (CTG)
+Cross-agent dependency map
+Links actual information/state dependencies, not just adjacent messages.
+Heterogeneous Graph Transformer (HGT)
+Learned normal-behavior checker (optional)
+An ML architecture trained on normal telemetry; not the graph itself.
+Real-time detector (Isolation Forest)
+Current-run anomaly checker (optional)
+Finds unusual steps but does not prove a root cause.
+Check → Decide → Inject
+Monitor → assess → intervene
+Only intervenes with evidence and anti-overcorrection guards.
+Repair Memory
+Repair history
+Tracks fixes and unresolved problems across attempts.
+Verified selective replay (MA-TRACE)
+Replay affected work and confirm state
+Proposed extension beyond plain guided full-run retries.
+Scientific positioning: the strongest defensible initial claim is a proposed integration and extension for measurable cross-agent containment/recovery. Novelty, statistical gains, and generalization remain hypotheses to test, not demonstrated conclusions.

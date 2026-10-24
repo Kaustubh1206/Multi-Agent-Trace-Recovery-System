@@ -1,0 +1,173 @@
+{
+  "pytest_exit_status": 0,
+  "pilots": [
+    {
+      "source_task_id": "69",
+      "run_type": "offline_scripted_llm_real_tools",
+      "official_evaluation_type": "ENV only",
+      "official_raw_result": {
+        "reward": 1.0,
+        "db_check": {
+          "db_match": true,
+          "db_reward": 1.0
+        },
+        "env_assertions": [],
+        "action_checks": null,
+        "nl_assertions": null,
+        "communicate_checks": null,
+        "reward_basis": [
+          "DB",
+          "NL_ASSERTION"
+        ],
+        "reward_breakdown": {
+          "DB": 1.0
+        },
+        "info": null
+      },
+      "actual_db_matches_reference": true,
+      "committed_writes": 1,
+      "simulated_user_run": false,
+      "full_benchmark_score": null
+    },
+    {
+      "source_task_id": "0",
+      "run_type": "offline_scripted_llm_real_tools",
+      "official_evaluation_type": "ENV only",
+      "official_raw_result": {
+        "reward": 1.0,
+        "db_check": {
+          "db_match": true,
+          "db_reward": 1.0
+        },
+        "env_assertions": [],
+        "action_checks": null,
+        "nl_assertions": null,
+        "communicate_checks": null,
+        "reward_basis": [
+          "DB",
+          "NL_ASSERTION"
+        ],
+        "reward_breakdown": {
+          "DB": 1.0
+        },
+        "info": null
+      },
+      "actual_db_matches_reference": true,
+      "committed_writes": 1,
+      "simulated_user_run": false,
+      "full_benchmark_score": null
+    },
+    {
+      "source_task_id": "1",
+      "run_type": "offline_scripted_llm_real_tools",
+      "official_evaluation_type": "ENV only",
+      "official_raw_result": {
+        "reward": 1.0,
+        "db_check": {
+          "db_match": true,
+          "db_reward": 1.0
+        },
+        "env_assertions": [],
+        "action_checks": null,
+        "nl_assertions": null,
+        "communicate_checks": null,
+        "reward_basis": [
+          "DB",
+          "NL_ASSERTION"
+        ],
+        "reward_breakdown": {
+          "DB": 1.0
+        },
+        "info": null
+      },
+      "actual_db_matches_reference": true,
+      "committed_writes": 1,
+      "simulated_user_run": false,
+      "full_benchmark_score": null
+    },
+    {
+      "source_task_id": "47",
+      "run_type": "offline_scripted_llm_real_tools",
+      "official_evaluation_type": "ENV only",
+      "official_raw_result": {
+        "reward": 1.0,
+        "db_check": {
+          "db_match": true,
+          "db_reward": 1.0
+        },
+        "env_assertions": [],
+        "action_checks": null,
+        "nl_assertions": null,
+        "communicate_checks": null,
+        "reward_basis": [
+          "DB",
+          "NL_ASSERTION"
+        ],
+        "reward_breakdown": {
+          "DB": 1.0
+        },
+        "info": null
+      },
+      "actual_db_matches_reference": true,
+      "committed_writes": 1,
+      "simulated_user_run": false,
+      "full_benchmark_score": null
+    },
+    {
+      "source_task_id": "84",
+      "run_type": "offline_scripted_llm_real_tools",
+      "official_evaluation_type": "ENV only",
+      "official_raw_result": {
+        "reward": 1.0,
+        "db_check": {
+          "db_match": true,
+          "db_reward": 1.0
+        },
+        "env_assertions": [],
+        "action_checks": null,
+        "nl_assertions": null,
+        "communicate_checks": null,
+        "reward_basis": [
+          "DB",
+          "NL_ASSERTION"
+        ],
+        "reward_breakdown": {
+          "DB": 1.0
+        },
+        "info": null
+      },
+      "actual_db_matches_reference": true,
+      "committed_writes": 1,
+      "simulated_user_run": false,
+      "full_benchmark_score": null
+    },
+    {
+      "source_task_id": "50",
+      "run_type": "offline_scripted_llm_real_tools",
+      "official_evaluation_type": "ENV only",
+      "official_raw_result": {
+        "reward": 1.0,
+        "db_check": {
+          "db_match": true,
+          "db_reward": 1.0
+        },
+        "env_assertions": [],
+        "action_checks": null,
+        "nl_assertions": null,
+        "communicate_checks": null,
+        "reward_basis": [
+          "DB",
+          "NL_ASSERTION"
+        ],
+        "reward_breakdown": {
+          "DB": 1.0
+        },
+        "info": null
+      },
+      "actual_db_matches_reference": true,
+      "committed_writes": 0,
+      "simulated_user_run": false,
+      "full_benchmark_score": null
+    }
+  ]
+}
