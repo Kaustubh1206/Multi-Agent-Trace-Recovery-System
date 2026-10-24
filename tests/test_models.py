@@ -186,3 +186,36 @@ def test_invalid_output_method_fails_before_model_request():
 def test_validation_failure_has_a_readable_safe_message():
     error = ModelOutputError("Invalid structured output from supervisor; no action taken")
     assert describe_model_error(error) == str(error)
+
+
+def test_openai_configuration_sends_native_model_id_and_compatible_parameters(monkeypatch):
+    import json
+
+    from retail_mas import models
+
+    requests = []
+
+    def handler(request):
+        requests.append((str(request.url), json.loads(request.content)))
+        return completion('{"allowed": false, "reason": "Not eligible"}')
+
+    def configured_client(**kwargs):
+        return ChatOpenAI(
+            **kwargs, http_client=httpx.Client(transport=httpx.MockTransport(handler))
+        )
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    monkeypatch.delenv("OPENAI_API_BASE", raising=False)
+    monkeypatch.delenv("RETAIL_MODEL", raising=False)
+    monkeypatch.setenv("RETAIL_REASONING_EFFORT", "none")
+    monkeypatch.setattr(models, "ChatOpenAI", configured_client)
+    result = models.AgentModels(output_method="json").invoke(
+        "policy", PolicyDecision, "Policy prompt", {}
+    )
+    assert not result.allowed
+    endpoint, body = requests[0]
+    assert endpoint == "https://api.openai.com/v1/chat/completions"
+    assert body["model"] == "gpt-6-luna"
+    assert body["reasoning_effort"] == "none"
+    assert "temperature" not in body

@@ -16,8 +16,8 @@ class ModelOutputError(ValueError):
 
 def create_model():
     return ChatOpenAI(
-        model=os.getenv("RETAIL_MODEL", "gpt-4.1-mini"),
-        temperature=0,
+        model=os.getenv("RETAIL_MODEL", "gpt-6-luna"),
+        reasoning_effort=os.getenv("RETAIL_REASONING_EFFORT") or None,
         timeout=60,
         max_retries=1,
         use_responses_api=False,

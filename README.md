@@ -65,15 +65,24 @@ No Git bundle is needed.
 You are the customer in manual mode. `--task 69` validates the train ID and initial fixture;
 it does **not** provide hidden task instructions to agents. Supply your own request and
 identity facts. Omit `--task` for an ordinary manual conversation. `/quit` closes the session.
-The example configuration uses Groq with `openai/gpt-oss-120b`. Put your Groq key in
-`OPENAI_API_KEY`, because the app uses an OpenAI-compatible client. To configure an
-existing `.env` without replacing your key:
+The example configuration uses OpenAI with `gpt-6-luna`. Put your OpenAI API key in
+`OPENAI_API_KEY`. To configure an existing `.env` without replacing your key:
 
 ```dotenv
-OPENAI_BASE_URL=https://api.groq.com/openai/v1
-RETAIL_MODEL=openai/gpt-oss-120b
+OPENAI_BASE_URL=https://api.openai.com/v1
+RETAIL_MODEL=gpt-6-luna
+RETAIL_REASONING_EFFORT=none
 RETAIL_OUTPUT_METHOD=json
 ```
+
+Use the native model ID [`gpt-6-luna`](https://developers.openai.com/api/docs/models/gpt-6-luna),
+without an `openai/` prefix. Remove any old
+`OPENAI_API_BASE` setting or set it to the same OpenAI endpoint: LangChain gives that
+variable precedence. Exported shell values take precedence over `.env` values too.
+
+The factory leaves temperature unset for reasoning-model compatibility. Reasoning effort
+is optional for other providers; remove `RETAIL_REASONING_EFFORT` when a model does not
+support it. OpenAI API usage is billed separately from ChatGPT subscriptions.
 
 `json` asks for JSON text and validates it locally against the same Pydantic schema.
 It avoids provider-specific native schema restrictions. `json_schema` optionally uses
