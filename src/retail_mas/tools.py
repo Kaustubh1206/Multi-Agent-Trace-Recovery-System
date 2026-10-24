@@ -6,6 +6,7 @@ import json
 from threading import RLock
 from typing import get_type_hints
 
+from langsmith import traceable
 from pydantic import BaseModel, TypeAdapter
 from tau2.domains.retail.tools import RetailTools
 
@@ -26,6 +27,16 @@ def plain(value):
 
 def database_hash(db):
     return hashlib.sha256(json.dumps(plain(db), sort_keys=True).encode()).hexdigest()
+
+
+def tool_trace_inputs(inputs):
+    """Never serialize the adapter, full fixture or preflight DB into tool spans."""
+    call = inputs.get("call")
+    if call is None and inputs.get("action") is not None:
+        call = inputs["action"].call
+    if call is not None:
+        return {"role": inputs.get("role"), "tool": call.name, "arguments": call.arguments}
+    return {"summary": inputs.get("summary", "")}
 
 
 class RetailAdapter:
@@ -62,6 +73,7 @@ class RetailAdapter:
         tools = self._tools.get_tools(include=sorted(names))
         return [tools[name].openai_schema for name in sorted(tools)]
 
+    @traceable(name="retail.read", run_type="tool", process_inputs=tool_trace_inputs)
     def read(self, role: str, call: ToolCall):
         with self._lock:
             allowed = READ_SCOPES.get(role, set())
@@ -171,6 +183,7 @@ class RetailAdapter:
                 return True
             return False
 
+    @traceable(name="retail.execute", run_type="tool", process_inputs=tool_trace_inputs)
     def execute(self, action: PendingAction):
         with self._lock:
             fingerprint = action.fingerprint
@@ -196,10 +209,12 @@ class RetailAdapter:
             self.write_count += 1
             return result
 
+    @traceable(name="retail.transfer", run_type="tool", process_inputs=tool_trace_inputs)
     def transfer(self, summary: str):
         with self._lock:
             return self._tools.transfer_to_human_agents(summary=summary)
 
+    @traceable(name="retail.verify", run_type="chain", process_inputs=tool_trace_inputs)
     def verify(self, action: PendingAction, execution_result: dict) -> dict:
         """Compare actual DB with this customer's preflighted action, not task labels."""
         with self._lock:

@@ -1,7 +1,8 @@
 # MA-TRACE — Retail MAS
 
 Phase 1 implements the retail multi-agent system in the proposal using LangGraph and
-**official τ²-bench Retail tools/data**. Tracing, fault injection and recovery are future work.
+**official τ²-bench Retail tools/data**. LangSmith experiment visualization is optional;
+MA-TRACE failure attribution, fault injection and recovery are future work.
 
 ## Architecture
 
@@ -101,6 +102,27 @@ uv run python -m tests.demo
 uv run pytest tests -q --pilot-report work/offline_pilot_results.json
 uv run ruff check src tests scripts main.py
 ```
+
+## Visualize the experiment in LangSmith
+
+Add these lines to your existing local `.env`, keeping your OpenAI configuration:
+
+```dotenv
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=your_langsmith_api_key
+LANGSMITH_PROJECT=matrace-retail-pilot
+LANGSMITH_ENDPOINT=https://api.smith.langchain.com
+```
+
+Run `uv sync --locked`, then `uv run python main.py --task 69`. Open the project in
+[LangSmith](https://smith.langchain.com) and inspect the `retail-task-69` run. Expand agent
+nodes to see model/tool activity. The CLI prints a conversation thread ID; use it in the
+Threads view to group all customer turns and confirmation resumes. Type `/quit` to flush
+pending traces and close the session.
+
+Tracing is off in `.env.example`. Enabling it uploads dialogue, prompts, shared runtime
+state and observed simulated retail records. Full setup, region selection, trace examples
+and recording boundaries are in [the LangSmith guide](docs/LANGSMITH.md).
 
 ## Read the code
 

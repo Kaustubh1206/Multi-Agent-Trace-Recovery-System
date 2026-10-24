@@ -1,6 +1,9 @@
 import os
 
 os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
+# Offline tests must not upload experiment traces even when a local .env enables them.
+os.environ["LANGSMITH_TRACING"] = "false"
+os.environ["LANGCHAIN_TRACING_V2"] = "false"
 
 import pytest
 from loguru import logger

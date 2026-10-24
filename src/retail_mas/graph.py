@@ -1,14 +1,33 @@
 """Seven proposal agents; the Supervisor coordinates Identity, Order and Policy."""
 
 from functools import partial
+from uuid import uuid4
 
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.graph import END, START, StateGraph
 
 from . import nodes
+from .data_loader import COMMIT
 from .edges import next_agent
 from .states import RetailState
+
+
+def run_config(source_task_id: str | None = None):
+    """Group customer turns and interrupt resumes into one LangSmith thread."""
+    thread_id = str(uuid4())
+    return {
+        "configurable": {"thread_id": thread_id},
+        "recursion_limit": 512,
+        "run_name": f"retail-task-{source_task_id}" if source_task_id else "retail-manual",
+        "tags": ["retail-mas", "manual"],
+        "metadata": {
+            "thread_id": thread_id,
+            "source_task_id": source_task_id or "manual",
+            "execution_mode": "manual",
+            "benchmark_commit": COMMIT,
+        },
+    }
 
 
 def build_graph(adapter, agents, policy: str):
@@ -45,4 +64,4 @@ def build_graph(adapter, agents, policy: str):
     serializer = JsonPlusSerializer(
         allowed_msgpack_modules=[("retail_mas.objects", name) for name in schemas]
     )
-    return builder.compile(checkpointer=InMemorySaver(serde=serializer))
+    return builder.compile(checkpointer=InMemorySaver(serde=serializer), name="RetailMAS")

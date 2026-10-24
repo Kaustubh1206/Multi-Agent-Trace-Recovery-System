@@ -1,7 +1,8 @@
 # Phase 1 implementation notes
 
-Scope: functional retail MAS only. No tracing framework, failure attribution, injector,
-anomaly detector, recovery, replay, or repair memory was implemented. The attached proposal
+Scope: functional retail MAS with optional LangSmith experiment visualization. No custom
+research tracing framework, failure attribution, injector, anomaly detector, recovery, replay,
+or repair memory was implemented. The attached proposal
 is reference context; its later-phase architecture did not expand this implementation's scope.
 
 ## Audit and provenance
@@ -114,6 +115,21 @@ retail-tool argument dictionaries; it falls back for format rejections, includin
 The CLI displays a sanitized status/code/parameter/message, excluding response generations
 and request bodies. Mock HTTP transport tests exercise the actual LangChain/OpenAI SDK
 request and error paths without credentials or paid calls. These are not live Groq runs.
+
+## LangSmith experiment visualization
+
+The user's visualization request adds optional native LangGraph/LLM tracing and four small
+SDK wrappers: scoped read, guarded execute, transfer and verification. The graph remains
+seven nodes. Runtime inputs/outputs and simulated records are visible when enabled; adapter
+objects, full fixtures, private task records and preflight scratch writes are not tool-span
+inputs. Each CLI conversation has a new thread ID, source-task label and benchmark commit.
+The same config is reused across turns and resumes. Exit flushes pending traces.
+
+The dependency was already present transitively and is now explicit in pyproject/lockfile.
+Tests disable remote tracing; local SDK and callback capture verify names, metadata,
+confirmation/duplicate guards and payload boundaries. Cloud viewing needs the user's local
+LangSmith key. See `LANGSMITH.md` for setup. This is not a claim of research trace attribution
+or an automated LangSmith benchmark evaluation.
 
 ## Evaluation status
 

@@ -15,8 +15,8 @@ uv run python -m tests.demo
 Observed final pytest output:
 
 ```text
-...........................................................              [100%]
-59 passed, 1 warning in 17.58s
+.................................................................        [100%]
+65 passed, 1 warning in 19.04s
 ```
 
 The warning is the pinned upstream's deprecated `audioop` import. Ruff lint and format
@@ -29,6 +29,14 @@ responses. They reproduce a Groq `json_validate_failed` HTTP 400, check bounded 
 fallback, verify JSON-text mode omits native schema parameters, and ensure unrelated bad
 requests are not retried as format errors. Diagnostic tests check secret/URL redaction
 and exclusion of failed generations. No live Groq request was made in these tests.
+
+LangSmith visualization checks capture the graph locally across a confirmation pause/resume,
+verify all seven agent names and shared task/thread metadata, and inspect scoped tool inputs.
+Local SDK traces record blocked writes and one successful write/verification; tests ensure
+tracing cannot bypass approval or capture the adapter/full fixture. Upload methods are
+blocked in these checks, and the normal suite forces tracing off. The CLI starts and exits
+with tracing disabled and no LangSmith key. Cloud upload/viewing remains to be verified with
+the user's account. See `LANGSMITH.md` for configuration and the recorded-data boundaries.
 
 ## Source-backed offline pilots actually run
 

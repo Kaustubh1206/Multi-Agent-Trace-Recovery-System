@@ -2,10 +2,10 @@
 
 import argparse
 import os
-from uuid import uuid4
 
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
+from langchain_core.tracers.langchain import wait_for_all_tracers
 from langgraph.types import Command
 
 
@@ -22,7 +22,7 @@ def main():
 
     logger.disable("tau2")
     from .data_loader import RetailDataset
-    from .graph import build_graph
+    from .graph import build_graph, run_config
     from .models import AgentModels, describe_model_error
     from .tools import RetailAdapter
 
@@ -31,8 +31,11 @@ def main():
     adapter = RetailAdapter(dataset.fresh_db(task["initial_state"] if task else None))
     agents = AgentModels()
     graph = build_graph(adapter, agents, dataset.policy)
-    config = {"configurable": {"thread_id": str(uuid4())}, "recursion_limit": 512}
+    config = run_config(args.task)
     print("Retail MAS (simulated retail data). Type /quit to stop. No benchmark score is computed.")
+    if os.getenv("LANGSMITH_TRACING", "").lower() == "true":
+        print(f"LangSmith project: {os.getenv('LANGSMITH_PROJECT', 'default')}")
+        print(f"Conversation thread: {config['metadata']['thread_id']}")
     try:
         while True:
             query = input("Customer: ").strip()
@@ -61,6 +64,8 @@ def main():
         print(f"Session stopped: {describe_model_error(error)}")
         print("No further actions will run.")
         raise SystemExit(1) from None
+    finally:
+        wait_for_all_tracers()
 
 
 if __name__ == "__main__":
