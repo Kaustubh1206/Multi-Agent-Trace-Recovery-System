@@ -8,12 +8,18 @@ from langgraph.graph.message import add_messages
 from .objects import PendingAction, PolicyDecision, SupervisorPlan
 
 
-class RetailState(TypedDict, total=False):
+class CustomerInput(TypedDict, total=False):
+    """Public request fields; internal approvals and routing are never input fields."""
+
     messages: Annotated[list[AnyMessage], add_messages]
     source_task_id: str
     scenario_id: str
     customer_query: str
     new_request: bool
+
+
+class RetailState(CustomerInput, total=False):
+    studio_session_id: str
     plan: SupervisorPlan
     authenticated_user_id: str | None
     observations: list[dict[str, Any]]

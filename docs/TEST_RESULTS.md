@@ -6,7 +6,7 @@ to `fc0055dc4e0a316c3f83133267fbd6faaa770992`. Exact dependencies are in `uv.loc
 ```bash
 uv sync --locked
 uv run python scripts/fetch_retail_data.py
-LANGGRAPH_STRICT_MSGPACK=true uv run pytest tests -q --pilot-report docs/offline_pilot_results.json
+uv run pytest tests -q --pilot-report work/offline_pilot_results.json
 uv run ruff check src tests scripts main.py
 uv run ruff format --check src tests scripts main.py
 uv run python -m tests.demo
@@ -15,8 +15,7 @@ uv run python -m tests.demo
 Observed final pytest output:
 
 ```text
-.................................................................        [100%]
-65 passed, 1 warning in 19.04s
+69 passed, 1 warning in 20.54s
 ```
 
 The warning is the pinned upstream's deprecated `audioop` import. Ruff lint and format
@@ -37,6 +36,14 @@ tracing cannot bypass approval or capture the adapter/full fixture. Upload metho
 blocked in these checks, and the normal suite forces tracing off. The CLI starts and exits
 with tracing disabled and no LangSmith key. Cloud upload/viewing remains to be verified with
 the user's account. See `LANGSMITH.md` for configuration and the recorded-data boundaries.
+
+Studio lifecycle tests check schema rendering without credentials, one adapter per thread,
+reuse across confirmation resumes, JSON checkpoint round trips, and rejection of old
+checkpoints after the retail session is lost. A local `langgraph dev --no-reload` HTTP smoke
+check returned HTTP 200 for health, graph and schema endpoints. Two real server threads
+used 14 intercepted OpenAI-compatible model responses: `yes` committed and verified a
+cancellation, while `no` on a fresh thread made no change. This used the pinned official
+DB/tools, no paid model calls and no cloud upload. The Studio browser UI was not automated.
 
 ## Source-backed offline pilots actually run
 

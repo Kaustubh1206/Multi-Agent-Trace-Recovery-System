@@ -105,6 +105,12 @@ uv run ruff check src tests scripts main.py
 
 ## Visualize the experiment in LangSmith
 
+For the interactive graph canvas, use **`uv run langgraph dev`** from the repository root
+after `uv sync --locked` and fetching the pinned data. `langgraph.json` registers the
+`retail_mas` graph. Open the printed Studio URL, create a new thread and submit a customer
+request. See [Studio inputs and confirmation resumes](docs/LANGSMITH.md#run-interactively-in-studio).
+Create a new thread after restarting the server; retail sessions are in memory.
+
 Add these lines to your existing local `.env`, keeping your OpenAI configuration:
 
 ```dotenv
@@ -137,6 +143,7 @@ Start with `graph.py`, then the seven named agent functions in `nodes.py`.
 | `models.py` | One configurable API model with a validated JSON fallback |
 | `data_loader.py`, `scripts/fetch_retail_data.py` | Pinned assets and fresh fixtures |
 | `cli.py`, `main.py` | Manual customer loop |
+| `langgraph.json`, `studio.py` | Local Agent Server / Studio entry point and isolated thread sessions |
 | `tests/` | Scripted model tests, real tools and separate benchmark evaluator |
 
 Each customer/task/trial needs a **new adapter and graph**. The CLI creates them on startup.

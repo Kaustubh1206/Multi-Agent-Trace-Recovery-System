@@ -10,7 +10,7 @@ from langgraph.graph import END, START, StateGraph
 from . import nodes
 from .data_loader import COMMIT
 from .edges import next_agent
-from .states import RetailState
+from .states import CustomerInput, RetailState
 
 
 def run_config(source_task_id: str | None = None):
@@ -30,8 +30,9 @@ def run_config(source_task_id: str | None = None):
     }
 
 
-def build_graph(adapter, agents, policy: str):
-    builder = StateGraph(RetailState)
+def build_graph(adapter, agents, policy: str, *, server=False, wrap_node=None):
+    """Use local checkpoints for the CLI; let Agent Server manage its own checkpoints."""
+    builder = StateGraph(RetailState, input_schema=CustomerInput)
     dependencies = {"adapter": adapter, "agents": agents, "policy": policy}
     functions = {
         "supervisor": nodes.supervisor,
@@ -43,7 +44,8 @@ def build_graph(adapter, agents, policy: str):
         "verification": nodes.verification_agent,
     }
     for name, function in functions.items():
-        builder.add_node(name, partial(function, **dependencies))
+        node = partial(function, **dependencies)
+        builder.add_node(name, wrap_node(node) if wrap_node else node)
     builder.add_edge(START, "supervisor")
     routes = {
         "supervisor": ["identity", "order", "policy", "decision", "end"],
@@ -64,4 +66,5 @@ def build_graph(adapter, agents, policy: str):
     serializer = JsonPlusSerializer(
         allowed_msgpack_modules=[("retail_mas.objects", name) for name in schemas]
     )
-    return builder.compile(checkpointer=InMemorySaver(serde=serializer), name="RetailMAS")
+    checkpointer = None if server else InMemorySaver(serde=serializer)
+    return builder.compile(checkpointer=checkpointer, name="RetailMAS")
