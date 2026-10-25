@@ -9,6 +9,7 @@ from tau2.data_model.message import AssistantMessage
 from retail_benchmark.runner import run_task
 from retail_mas.models import describe_model_error
 from retail_mas.nodes import identity_agent
+from retail_mas.objects import ToolCall
 from retail_mas.policy import explicit_answer
 
 from .support import (
@@ -54,6 +55,8 @@ def test_live_cancellation_reply_completes_without_replanning(dataset, monkeypat
 
 @pytest.mark.parametrize("task_id,include_keyboard,reply", [
     ("0", True, EXCHANGE_REPLY),
+    ("0", True, "Yes, please proceed. That covers everything I want to exchange. Thanks!"),
+    ("0", True, "Yes, please proceed. That includes all the items I want to exchange. Thank you!"),
     ("1", False, "Yes, proceed. That’s everything I want changed. Thank you!"),
 ])
 def test_live_exchange_reply_completes_without_replanning(
@@ -88,10 +91,16 @@ def test_live_exchange_reply_completes_without_replanning(
         )),
         *after_write(),
     ])
-    _, report, db = run_task(dataset, task_id, agents=agents)
+    simulation, report, db = run_task(dataset, task_id, agents=agents)
     assert report["validated_success"]
     assert report["committed_writes"] == 1
     assert db.orders["#W2378156"].exchange_items == sorted(items)
+    questions = [
+        message.content for message in simulation.messages
+        if message.role == "assistant" and message.content
+        and "Proceed? Reply yes or no." in message.content
+    ]
+    assert len(questions) == 1
     assert [role for role, _, _ in agents.contexts].count("supervisor") == 1
     assert not agents.steps
 
@@ -158,3 +167,70 @@ def test_agent_error_reports_location_without_exception_locals(dataset, monkeypa
     assert report["run_error_location"]["function"] == "agent_step"
     assert isinstance(report["run_error_location"]["line"], int)
     assert "private-customer-text" not in json.dumps(report)
+
+
+@pytest.mark.parametrize("reply,action_name", [
+    (
+        "Yes, please proceed. That includes all the items I want to return. Thanks!",
+        "return_delivered_order_items",
+    ),
+    (
+        "Yes, please proceed. That covers everything I want to change.",
+        "modify_pending_order_items",
+    ),
+    (
+        "Yes, that includes all items I want to exchange. Please proceed.",
+        "exchange_delivered_order_items",
+    ),
+])
+def test_item_acknowledgements_are_scoped_to_the_pending_operation(reply, action_name):
+    assert explicit_answer(reply, action_name) == "yes"
+    assert explicit_answer(reply, "cancel_pending_order") == "unclear"
+
+
+@pytest.mark.parametrize("reply", [
+    "Yes, please proceed. That covers everything I want to return. Thanks!",
+    "Yes, please proceed. That covers everything I want to exchange except the keyboard.",
+    "Yes, please proceed. That covers everything I want to exchange if shipping is free.",
+    "Yes, please proceed. That covers everything I want to exchange. Use another card.",
+    "Yes, please proceed. That covers everything I want to exchange in order #W2417020.",
+    "Yes? Please proceed. That covers everything I want to exchange.",
+    "That covers everything I want to exchange. Thanks!",
+    "Yes, please proceed. That includes all the items I want to exchange. ###STOP###",
+])
+def test_item_acknowledgement_cannot_hide_changed_or_missing_approval(adapter, reply):
+    adapter.read("identity", ToolCall(
+        name="find_user_id_by_name_zip",
+        arguments={"first_name": "Yusuf", "last_name": "Rossi", "zip": "19122"},
+    ))
+    action = adapter.prepare(ToolCall(
+        name="exchange_delivered_order_items",
+        arguments={
+            "order_id": "#W2378156",
+            "item_ids": ["1151293680", "4983901480"],
+            "new_item_ids": ["7706410293", "7747408585"],
+            "payment_method_id": "credit_card_9513926",
+        },
+    ))
+    before = adapter.snapshot()
+    assert explicit_answer(reply, action.call.name) == "unclear"
+    assert not adapter.confirm(action.fingerprint, reply)
+    with pytest.raises(ValueError, match="approval"):
+        adapter.execute(action)
+    assert adapter.write_count == 0
+    assert adapter.snapshot() == before
+
+
+def test_simulator_stop_with_approval_does_not_execute_a_pending_action(dataset, monkeypatch):
+    customer_messages(monkeypatch, [
+        "Emma Smith ZIP 10192, no email. Cancel #W2417020 because no longer needed.",
+        CANCELLATION_REPLY + "\n\n###STOP###",
+    ])
+    agents = ScriptedAgents(cancellation_steps(confirmed=False))
+    _, report, db = run_task(dataset, "69", agents=agents)
+    assert report["termination_reason"] == "user_stop"
+    assert report["evaluation_status"] == "complete"
+    assert report["committed_writes"] == 0
+    assert report["initial_database_hash"] == report["final_database_hash"]
+    assert db.orders["#W2417020"].status == "pending"
+    assert not agents.steps

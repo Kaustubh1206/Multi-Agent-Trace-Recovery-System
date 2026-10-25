@@ -34,25 +34,22 @@ def explicit_answer(reply: str, action_name: str | None = None) -> str:
             break
     if normalized in {"no", "cancel", "do not proceed", "no please do not proceed"}:
         return "no"
-    # This acknowledgement adds no item selection; the prepared call still binds all IDs.
-    acknowledgement = "yes this includes all the items i want changed"
-    if action_name in {
-        "exchange_delivered_order_items", "return_delivered_order_items",
-        "modify_pending_order_items",
-    }:
-        if normalized == acknowledgement:
-            return "yes"
-        normalized = normalized.removeprefix(acknowledgement + " ")
-    if action_name in {
-        "exchange_delivered_order_items", "return_delivered_order_items",
-        "modify_pending_order_items",
-    }:
-        for acknowledgement in (
-            " that's everything i want changed", " that is everything i want changed",
-        ):
-            if normalized.endswith(acknowledgement):
-                normalized = normalized.removesuffix(acknowledgement)
-                break
+    # A completeness acknowledgement adds no item selection. Match the whole clause
+    # and its operation, so extra conditions or changed parameters remain unapproved.
+    item_verb = {
+        "exchange_delivered_order_items": "exchange",
+        "return_delivered_order_items": "return",
+        "modify_pending_order_items": "change",
+    }.get(action_name)
+    if item_verb:
+        acknowledgement = (
+            r"(?:(?:this|that) (?:covers|includes)|that's|that is|this is) "
+            rf"(?:everything|all (?:the )?items) i want (?:changed|to {item_verb})"
+        )
+        normalized = re.sub(rf" (?:{acknowledgement})$", "", normalized, count=1)
+        normalized = re.sub(
+            rf"^yes (?:{acknowledgement})(?: |$)", "yes ", normalized, count=1
+        ).strip()
     approvals = {
         "yes", "yes confirm", "i confirm", "yes i confirm", "yes please",
         "yes please proceed", "yes proceed", "please proceed",
