@@ -95,14 +95,14 @@ and duplicate-write guards are unchanged.
 The previous exact-word parser rejected the natural approvals supplied for live tasks
 69 and 0 and discarded their proposals. Regression tests use those exact final replies
 with scripted specialists and real tools. The task 0 rerun also exposed a repeated
-confirmation loop with a different item-list
-acknowledgement. Its exact first approval now has an automatic regression requiring one
-proposal, one committed exchange and native DB agreement. The runner still stops before
-passing any STOP-bearing simulator message to the MAS. Passing these checks does not
-establish that new live model runs succeed. The historical generic ValueError reports
-do not retain
-the exact throwing line; new reports preserve safe protocol errors and a project-frame
-`run_error_location` without paths, locals or raw provider bodies.
+confirmation loop with a different item-list acknowledgement. Its exact first approval
+now has an automatic regression requiring one proposal, one committed exchange and
+native DB agreement. The runner still stops before passing any STOP-bearing simulator
+message to the MAS. Passing these checks does not establish new live model success.
+
+The historical generic ValueError reports do not retain the exact throwing line. New
+reports preserve safe protocol errors and a project-frame `run_error_location` without
+paths, locals or raw provider bodies.
 
 ## Clarification, capabilities and return totals
 

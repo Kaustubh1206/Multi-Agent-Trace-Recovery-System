@@ -68,6 +68,23 @@ The historical generic ValueError reports do not retain their exact throwing lin
 New reports include safe protocol diagnostics and project-frame locations. No new live
 model score or claim that all four historical failures are resolved is established here.
 
+The subsequent task 0 live rerun (`f18ec676-b144-4e18-9981-81769724ade6`) completed
+evaluation with reward 0 and zero writes. Its first reply was "Yes, please proceed.
+That covers everything I want to exchange. Thanks!" The parser rejected that
+acknowledgement and repeated the same proposal; the simulator then stopped.
+
+Code commit `4a6888742fb850db65c751d62d928c996fa359a0` handles operation-matched
+completeness acknowledgements without replanning. It passed
+[GitHub Actions run 40240261001](https://github.com/Kaustubh1206/Multi-Agent-Trace-Recovery-System/actions/runs/40240261001):
+**117 passed, 1 warning in 85.22s**; Ruff passed. The exact supplied first approval
+completes one two-item exchange in the offline official-tool/evaluator regression, with
+one confirmation prompt and no second Supervisor call. Guard cases reject changed
+items, order, payment, conditions, missing approval and mismatched operations without
+mutating the DB. A separate runner check preserves immediate simulator STOP handling,
+including a stop message that also contains approval. The seven-node graph, executor,
+simulator and native grading rules are unchanged. This is offline evidence; the fix
+still needs a new live task 0 trial. Tasks 1 and 47 need their current failure details.
+
 ## Official simulator bridge checks
 
 The 15 added integration cases exercise the official text simulator class and native ALL
