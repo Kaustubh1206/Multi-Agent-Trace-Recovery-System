@@ -15,7 +15,8 @@ PROMPTS = {
 and describe its purpose. Coordinate multiple requests one at a time. Set question only
 when a missing customer fact prevents progress. For continuing_request, update the active
 purpose from the dialogue and latest clarification; it is not an unrelated new task.
-Latest changes override old choices. Deterministic routing handles specialists.""",
+Latest changes override old choices. Do not ask action approval; specialists must first
+prepare the action. Deterministic routing handles specialists.""",
     "identity": """Authenticate with one permitted lookup: prefer email, or first name, last name
 and ZIP when email is unavailable or failed. A supplied user ID is not authentication.
 Return kind=tool for a lookup, or kind=ask for missing identity facts. Do not read orders.""",
@@ -38,8 +39,10 @@ ordinary return. Read-only information requests do not require write eligibility
 kind=respond. For a permitted change return kind=propose with ONE complete official write
 call; it has not executed. Collect all items for once-only operations. The application
 summarizes exact arguments/financial consequences and pauses here for explicit consent.
-Use kind=ask only for missing customer facts, not approval. Propose the tool call so the
-application can preflight it and ask approval. Use kind=complete for more Order facts;
+Use kind=ask only for missing customer facts, not approval. Once the requested call is
+known, propose it now, even if the customer already said they want to proceed. Do not
+repeat an informal confirmation question; the application preflights and asks approval.
+Use kind=complete for more Order facts;
 request missing calculations instead of claiming their results cannot be verified.
 Never override a denied Policy finding. Use kind=transfer for an unsupported request or
 explicit human request. Do not claim a human will grant an exception.""",

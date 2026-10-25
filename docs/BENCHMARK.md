@@ -104,6 +104,18 @@ The historical generic ValueError reports do not retain the exact throwing line.
 reports preserve safe protocol errors and a project-frame `run_error_location` without
 paths, locals or raw provider bodies.
 
+An additional task 1 failure asked the customer to confirm the exchange in prose without
+preparing the official call. Common action-approval questions from Order/Decision are now
+intercepted before reaching the customer. The same role gets one corrective retry: Order
+hands off ready facts; Decision proposes the complete call. Repeated noncompliance fails
+closed with a safe protocol error. Supervisor approval questions instead defer to the
+specialists. Ordinary missing-fact questions continue to pause for the customer.
+
+This is a conservative text check for common approval-request wording, not a semantic
+classifier for every possible sentence. The actual security boundary remains preparation,
+exact approval, authentication, ownership and fresh eligibility checks in the executor.
+Existing informal customer approvals never become consent for an unprepared action.
+
 ## Clarification, capabilities and return totals
 
 Clarification replies retain the current request's observed tool facts and purpose.

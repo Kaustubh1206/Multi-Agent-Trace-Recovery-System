@@ -3,6 +3,7 @@
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import interrupt
 
+from .models import ModelOutputError
 from .objects import (
     AgentStep,
     PaymentFinding,
@@ -11,7 +12,14 @@ from .objects import (
     ToolCall,
     VerificationFinding,
 )
-from .policy import IDENTITY_TOOLS, ORDER_TOOLS, WRITE_TOOLS, confirmation_summary, explicit_answer
+from .policy import (
+    IDENTITY_TOOLS,
+    ORDER_TOOLS,
+    WRITE_TOOLS,
+    asks_for_action_approval,
+    confirmation_summary,
+    explicit_answer,
+)
 from .prompts import system_prompt
 
 TRANSFER_MESSAGE = "YOU ARE BEING TRANSFERRED TO A HUMAN AGENT. PLEASE HOLD ON."
@@ -73,6 +81,8 @@ def supervisor(state, *, adapter, agents, policy):
             system_prompt("supervisor", policy),
             context_for(clean, adapter),
         )
+        if plan.question and asks_for_action_approval(plan.question):
+            plan = plan.model_copy(update={"question": ""})
         update = {
             "plan": plan,
             "new_request": False,
@@ -108,12 +118,27 @@ def supervisor(state, *, adapter, agents, policy):
 def agent_step(role, state, adapter, agents, policy, tools, allowed):
     context = context_for(state, adapter)
     context["available_tools"] = adapter.schemas(tools)
-    step = agents.invoke(role, AgentStep, system_prompt(role, policy), context)
-    if step.kind not in allowed:
-        raise ValueError(f"Invalid {role} output kind: {step.kind}")
-    if step.kind in {"tool", "propose"} and step.tool is None:
-        raise ValueError("A tool/proposal step requires a tool call")
-    return step
+    for _ in range(2):
+        step = agents.invoke(role, AgentStep, system_prompt(role, policy), context)
+        if step.kind not in allowed:
+            raise ValueError(f"Invalid {role} output kind: {step.kind}")
+        if step.kind in {"tool", "propose"} and step.tool is None:
+            raise ValueError("A tool/proposal step requires a tool call")
+        if step.kind not in {"ask", "respond"} or not asks_for_action_approval(step.text):
+            return step
+        correction = (
+            "Do not ask for action approval in prose. Only the application's prepared "
+            "action summary can ask approval. "
+        )
+        correction += {
+            "decision": "Return kind=propose with the full official tool call, or "
+            "kind=complete to obtain missing observed facts.",
+            "order": "Use scoped reads for missing facts; return kind=complete when "
+            "order facts are ready. Ask only for genuinely missing customer facts.",
+            "identity": "Return a permitted lookup or ask for missing identity facts.",
+        }[role]
+        context = {**context, "validation_error": correction}
+    raise ModelOutputError(f"{role} repeated an unprepared approval request; no action taken")
 
 
 def read_facts(role, state, adapter, agents, policy, tools):

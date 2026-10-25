@@ -25,6 +25,25 @@ ORDER_TOOLS = {
 }
 
 
+def asks_for_action_approval(text: str) -> bool:
+    """Catch common approval questions that must come from a prepared action."""
+    text = " ".join(text.casefold().split())
+    approval = re.search(
+        r"\b(?:please confirm|please approve|please authorize|"
+        r"your confirmation|your approval|your consent)\b"
+        r"|\b(?:can|could|would|will) you (?:please )?(?:confirm|approve|authorize)\b"
+        r"|\b(?:may|shall|should|can) (?:i|we) (?:proceed|go ahead|submit|process)\b"
+        r"|\b(?:do you want|would you like) (?:me|us) to\b",
+        text,
+    )
+    action = re.search(
+        r"\b(?:exchange|return|refund|cancel|cancellation|change|modify|update|"
+        r"payment|address|replacement|proceed)\b",
+        text,
+    )
+    return bool(approval and action)
+
+
 def explicit_answer(reply: str, action_name: str | None = None) -> str:
     """Accept unqualified approval; never infer consent from changed parameters."""
     normalized = re.sub(r"[\s,.!]+", " ", reply.casefold().replace("’", "'")).strip()

@@ -21,6 +21,8 @@ from .support import (
     plan,
     policy_review,
     proposal,
+    resume,
+    session,
     tool,
 )
 
@@ -233,4 +235,107 @@ def test_simulator_stop_with_approval_does_not_execute_a_pending_action(dataset,
     assert report["committed_writes"] == 0
     assert report["initial_database_hash"] == report["final_database_hash"]
     assert db.orders["#W2417020"].status == "pending"
+    assert not agents.steps
+
+
+INFORMAL_EXCHANGE_CONFIRMATION = (
+    "I have the requested exchange details: order #W2378156, exchange only thermostat "
+    "item 4983901480 for available black Google Assistant thermostat item 7747408585, "
+    "using your Mastercard ending 2478 for any price difference. The keyboard will "
+    "remain unchanged, and the replacement is listed as Google Assistant compatible "
+    "(not specifically Google Home). Please confirm that this is the exact replacement "
+    "you want and that the thermostat is the only item you want exchanged—all items "
+    "to exchange have been listed."
+)
+
+
+@pytest.mark.parametrize("origin,kind", [
+    ("supervisor", "question"),
+    ("order", "ask"),
+    ("decision", "ask"),
+    ("decision", "respond"),
+])
+def test_informal_approval_is_corrected_before_reaching_customer(
+    adapter, dataset, record_pilot, origin, kind
+):
+    steps = [
+        plan(),
+        ("identity", tool(
+            "find_user_id_by_name_zip", first_name="Yusuf", last_name="Rossi", zip="19122"
+        )),
+        ("order", tool("get_order_details", order_id="#W2378156")),
+        ("order", tool("get_product_details", product_id="1656367028")),
+        ("order", tool("get_product_details", product_id="4896585277")),
+        ("order", tool("get_user_details", user_id="yusuf_rossi_9620")),
+    ]
+    bad_step = {"kind": kind, "text": INFORMAL_EXCHANGE_CONFIRMATION}
+    if origin == "supervisor":
+        steps[0][1]["question"] = INFORMAL_EXCHANGE_CONFIRMATION
+    if origin == "order":
+        steps.append(("order", bad_step))
+    steps.extend([("order", {"kind": "complete"}), policy_review()])
+    if origin == "decision":
+        steps.append(("decision", bad_step))
+    steps.extend([
+        ("decision", proposal(
+            "exchange_delivered_order_items", order_id="#W2378156",
+            item_ids=["4983901480"], new_item_ids=["7747408585"],
+            payment_method_id="credit_card_9513926",
+        )),
+        *after_write(),
+    ])
+    before = adapter.snapshot()
+    graph, agents, config, result = session(
+        adapter, dataset, steps,
+        "Yusuf Rossi ZIP 19122, no email. Since full-size clicky RGB is unavailable, "
+        "keep my keyboard. Yes, exchange only the thermostat in #W2378156 for the "
+        "black Google Assistant model, using my original Mastercard.",
+        "1",
+    )
+    pause = result["__interrupt__"][0].value
+    assert pause["kind"] == "confirmation"
+    assert pause["message"].startswith("Proposed exchange_delivered_order_items:")
+    assert INFORMAL_EXCHANGE_CONFIRMATION not in pause["message"]
+    assert result["pending_action"].call.arguments["item_ids"] == ["4983901480"]
+    assert adapter.write_count == 0
+    assert adapter.snapshot() == before
+    if origin != "supervisor":
+        corrections = [
+            context["validation_error"] for role, _, context in agents.contexts
+            if role == origin and context.get("validation_error")
+        ]
+        assert len(corrections) == 1
+        assert "Do not ask for action approval in prose" in corrections[0]
+    final = resume(graph, config, "Yes, please proceed with the exchange.")
+    assert adapter.write_count == 1
+    assert final["verification_result"]["verified"]
+    assert adapter.snapshot().orders["#W2378156"].exchange_items == ["4983901480"]
+    assert not any(
+        message.content == INFORMAL_EXCHANGE_CONFIRMATION for message in final["messages"]
+    )
+    assert not agents.steps
+    record_pilot("1", adapter)
+
+
+def test_repeated_unprepared_approval_requests_fail_closed_with_a_bounded_retry(
+    dataset, monkeypatch
+):
+    customer_messages(monkeypatch, [
+        "Emma Smith ZIP 10192, no email. Cancel #W2417020 because no longer needed.",
+    ])
+    approval_question = {"kind": "ask", "text": "Please confirm the cancellation."}
+    agents = ScriptedAgents([
+        *cancellation_steps(confirmed=False)[:-1],
+        ("decision", approval_question),
+        ("decision", approval_question),
+    ])
+    _, report, db = run_task(dataset, "69", agents=agents)
+    assert report["termination_reason"] == "agent_error"
+    assert report["run_error"] == (
+        "decision repeated an unprepared approval request; no action taken"
+    )
+    assert report["committed_writes"] == 0
+    assert report["initial_database_hash"] == report["final_database_hash"]
+    assert db.orders["#W2417020"].status == "pending"
+    assert [role for role, _, _ in agents.contexts].count("decision") == 2
     assert not agents.steps
