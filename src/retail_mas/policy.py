@@ -1,5 +1,6 @@
 """Deterministic policy boundaries, independent of model judgments."""
 
+import re
 from collections import Counter
 
 from .objects import ToolCall
@@ -24,13 +25,47 @@ ORDER_TOOLS = {
 }
 
 
-def explicit_answer(reply: str) -> str:
-    """Conservative consent: changes embedded in a 'yes' are NOT approval."""
-    normalized = reply.strip().lower().rstrip(".! ")
-    if normalized in {"yes", "yes, confirm", "i confirm"}:
-        return "yes"
-    if normalized in {"no", "cancel", "do not proceed"}:
+def explicit_answer(reply: str, action_name: str | None = None) -> str:
+    """Accept unqualified approval; never infer consent from changed parameters."""
+    normalized = re.sub(r"[\s,.!]+", " ", reply.casefold()).strip()
+    for courtesy in (" thank you", " thanks"):
+        if normalized.endswith(courtesy):
+            normalized = normalized.removesuffix(courtesy)
+            break
+    if normalized in {"no", "cancel", "do not proceed", "no please do not proceed"}:
         return "no"
+    # This acknowledgement adds no item selection; the prepared call still binds all IDs.
+    acknowledgement = "yes this includes all the items i want changed"
+    if action_name in {
+        "exchange_delivered_order_items", "return_delivered_order_items",
+        "modify_pending_order_items",
+    }:
+        if normalized == acknowledgement:
+            return "yes"
+        normalized = normalized.removeprefix(acknowledgement + " ")
+    approvals = {
+        "yes", "yes confirm", "i confirm", "yes i confirm", "yes please",
+        "yes please proceed", "yes proceed", "please proceed",
+        "yes please go ahead", "yes go ahead", "please go ahead", "go ahead",
+    }
+    if normalized in approvals:
+        return "yes"
+    operation_labels = {
+        "cancel_pending_order": {"cancellation", "cancellation and refund"},
+        "exchange_delivered_order_items": {"exchange", "exchanges"},
+        "return_delivered_order_items": {"return", "return and refund"},
+        "modify_pending_order_address": {"address change", "address update"},
+        "modify_user_address": {"address change", "address update"},
+        "modify_pending_order_payment": {"payment change", "payment method change"},
+        "modify_pending_order_items": {"item change", "item changes", "item update"},
+    }
+    approval, separator, operation = normalized.partition(" with ")
+    if (
+        separator
+        and approval in approvals
+        and operation.removeprefix("the ") in operation_labels.get(action_name, set())
+    ):
+        return "yes"
     return "unclear"
 
 

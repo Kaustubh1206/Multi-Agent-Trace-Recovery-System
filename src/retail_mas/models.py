@@ -39,6 +39,17 @@ def describe_model_error(error: Exception) -> str:
     """Show provider diagnostics without headers, request bodies or failed generations."""
     if isinstance(error, ModelOutputError):
         return str(error)
+    if isinstance(error, ValueError):
+        message = str(error)
+        protocol_error = re.fullmatch(
+            r"Invalid (identity|order|decision) output kind: "
+            r"(tool|ask|complete|respond|propose|transfer)", message
+        )
+        if protocol_error or message in {
+            "A tool/proposal step requires a tool call",
+            "RETAIL_OUTPUT_METHOD must be json or json_schema",
+        }:
+            return message
     if not isinstance(error, APIStatusError):
         return type(error).__name__
     body = error.body if isinstance(error.body, dict) else {}

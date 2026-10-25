@@ -79,6 +79,23 @@ cannot be `validated_success`. The CLI exits 1 for incomplete/error evaluations.
 A fully scored reward-0 trial remains a valid evaluator result and exits normally.
 Independent trials continue after reported model/conversation failures.
 
+## Natural-language confirmation
+
+Confirmation accepts a conservative set of explicit phrases such as "yes, please proceed".
+If a reply names an operation, it must match the prepared tool type. The item-list
+acknowledgement and trailing "thank you" in ordinary customer replies are supported.
+An altered item/order/payment, a condition, a question or an unmatched phrase is not
+approval and follows clarification/replanning. Approval remains bound to the exact
+prepared arguments, financial consequences and DB snapshot; fingerprint, eligibility
+and duplicate-write guards are unchanged.
+
+The previous exact-word parser rejected the natural approvals supplied for live tasks
+69 and 0 and discarded their proposals. Regression tests use those exact final replies
+with scripted specialists and real tools. Passing those checks does not establish that
+new live model runs succeed. The historical generic ValueError reports do not retain
+the exact throwing line; new reports preserve safe protocol errors and a project-frame
+`run_error_location` without paths, locals or raw provider bodies.
+
 ## Inspect an existing failed batch
 
 Use the saved artifacts before paying for another model run:

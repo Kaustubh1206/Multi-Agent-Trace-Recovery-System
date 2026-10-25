@@ -170,7 +170,7 @@ def customer_reply(state, adapter):
     update = {"messages": messages, "awaiting_customer": None}
     if kind == "confirmation":
         action = state["pending_action"]
-        answer = explicit_answer(reply)
+        answer = explicit_answer(reply, action.call.name)
         if answer == "yes" and adapter.confirm(action.fingerprint, reply):
             return {**update, "confirmation": answer, "next_agent": "action_payment"}
         adapter.invalidate_consent()

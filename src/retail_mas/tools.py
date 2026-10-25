@@ -177,7 +177,7 @@ class RetailAdapter:
             if (
                 self._prepared
                 and fingerprint == self._prepared.fingerprint
-                and explicit_answer(customer_reply) == "yes"
+                and explicit_answer(customer_reply, self._prepared.call.name) == "yes"
             ):
                 self._approved = fingerprint
                 return True

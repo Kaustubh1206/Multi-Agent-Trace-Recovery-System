@@ -58,7 +58,7 @@ class RecordedAdapter(RetailAdapter):
             self._approved == action.fingerprint
             and self.last_confirmation is not None
             and self.last_confirmation[0] == action.fingerprint
-            and explicit_answer(self.last_confirmation[1]) == "yes"
+            and explicit_answer(self.last_confirmation[1], action.call.name) == "yes"
         )
         result = super().execute(action)
         self.commits.append(

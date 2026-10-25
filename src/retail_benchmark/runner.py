@@ -26,6 +26,21 @@ def now():
     return datetime.now(timezone.utc).isoformat()
 
 
+def error_location(error):
+    """Report the last project frame without paths, locals or provider response bodies."""
+    location = None
+    current = error.__traceback__
+    while current is not None:
+        frame = current.tb_frame
+        module = frame.f_globals.get("__name__", "")
+        if module.startswith(("retail_mas.", "retail_benchmark.")):
+            location = {
+                "module": module, "function": frame.f_code.co_name, "line": current.tb_lineno
+            }
+        current = current.tb_next
+    return location
+
+
 def run_task(
     dataset,
     source_task_id,
@@ -48,6 +63,7 @@ def run_task(
     config["metadata"].update(execution_mode="simulated_user", trial=trial, seed=seed)
     started, start_time = monotonic(), now()
     reason, failure, turns = TerminationReason.MAX_STEPS, None, 0
+    failure_location = None
     verifications, paused, stage = [], False, "user"
     scripted = agents is not None
     simulator, models = None, None
@@ -101,6 +117,7 @@ def run_task(
     except Exception as error:
         reason = TerminationReason.USER_ERROR if stage == "user" else TerminationReason.AGENT_ERROR
         failure = describe_model_error(error)
+        failure_location = error_location(error)
     finally:
         if simulator is not None:
             simulator.stop()
@@ -141,6 +158,7 @@ def run_task(
         "customer_turns": turns,
         "termination_reason": reason.value,
         "run_error": failure,
+        "run_error_location": failure_location,
         "execution_mode": "offline_scripted_agents" if scripted else "api_models",
         "benchmark_commit": dataset.manifest["commit"],
         "asset_hashes": {key: value["sha256"] for key, value in dataset.manifest["assets"].items()},

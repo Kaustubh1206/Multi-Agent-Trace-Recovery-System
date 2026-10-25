@@ -35,7 +35,7 @@ def inspect_reports(directory):
         row = {
             key: report.get(key) for key in (
                 "source_task_id", "trial", "run_id", "termination_reason", "run_error",
-                "evaluation_status", "evaluation_error", "native_reward", "validated_success",
+                "evaluation_status", "evaluation_error", "run_error_location", "native_reward", "validated_success",
                 "committed_writes", "human_transfers",
             )
         }
