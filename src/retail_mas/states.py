@@ -20,6 +20,7 @@ class CustomerInput(TypedDict, total=False):
 
 class RetailState(CustomerInput, total=False):
     studio_session_id: str
+    continuing_request: bool
     plan: SupervisorPlan
     authenticated_user_id: str | None
     observations: list[dict[str, Any]]

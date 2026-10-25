@@ -52,12 +52,22 @@ def test_live_cancellation_reply_completes_without_replanning(dataset, monkeypat
     assert not agents.steps
 
 
-def test_live_exchange_reply_completes_both_items_without_replanning(dataset, monkeypatch):
+@pytest.mark.parametrize("task_id,include_keyboard,reply", [
+    ("0", True, EXCHANGE_REPLY),
+    ("1", False, "Yes, proceed. That’s everything I want changed. Thank you!"),
+])
+def test_live_exchange_reply_completes_without_replanning(
+    dataset, monkeypatch, task_id, include_keyboard, reply
+):
+    items = ["1151293680", "4983901480"] if include_keyboard else ["4983901480"]
+    replacements = ["7706410293", "7747408585"] if include_keyboard else ["7747408585"]
     customer_messages(monkeypatch, [
         "Yusuf Rossi ZIP 19122, no email. Exchange the full-size keyboard to clicky RGB, "
         "or no backlight if unavailable, and thermostat to Google Home in #W2378156. "
-        "Use my original credit card.",
-        EXCHANGE_REPLY, "###STOP###",
+        "Use my original credit card. " + (
+            "I accept no backlight." if include_keyboard else "Only exchange the thermostat if RGB is unavailable."
+        ),
+        reply, "###STOP###",
     ])
     agents = ScriptedAgents([
         plan(),
@@ -72,16 +82,16 @@ def test_live_exchange_reply_completes_both_items_without_replanning(dataset, mo
         policy_review(),
         ("decision", proposal(
             "exchange_delivered_order_items", order_id="#W2378156",
-            item_ids=["1151293680", "4983901480"],
-            new_item_ids=["7706410293", "7747408585"],
+            item_ids=items,
+            new_item_ids=replacements,
             payment_method_id="credit_card_9513926",
         )),
         *after_write(),
     ])
-    _, report, db = run_task(dataset, "0", agents=agents)
+    _, report, db = run_task(dataset, task_id, agents=agents)
     assert report["validated_success"]
     assert report["committed_writes"] == 1
-    assert db.orders["#W2378156"].exchange_items == ["1151293680", "4983901480"]
+    assert db.orders["#W2378156"].exchange_items == sorted(items)
     assert [role for role, _, _ in agents.contexts].count("supervisor") == 1
     assert not agents.steps
 

@@ -27,7 +27,7 @@ ORDER_TOOLS = {
 
 def explicit_answer(reply: str, action_name: str | None = None) -> str:
     """Accept unqualified approval; never infer consent from changed parameters."""
-    normalized = re.sub(r"[\s,.!]+", " ", reply.casefold()).strip()
+    normalized = re.sub(r"[\s,.!]+", " ", reply.casefold().replace("’", "'")).strip()
     for courtesy in (" thank you", " thanks"):
         if normalized.endswith(courtesy):
             normalized = normalized.removesuffix(courtesy)
@@ -43,6 +43,16 @@ def explicit_answer(reply: str, action_name: str | None = None) -> str:
         if normalized == acknowledgement:
             return "yes"
         normalized = normalized.removeprefix(acknowledgement + " ")
+    if action_name in {
+        "exchange_delivered_order_items", "return_delivered_order_items",
+        "modify_pending_order_items",
+    }:
+        for acknowledgement in (
+            " that's everything i want changed", " that is everything i want changed",
+        ):
+            if normalized.endswith(acknowledgement):
+                normalized = normalized.removesuffix(acknowledgement)
+                break
     approvals = {
         "yes", "yes confirm", "i confirm", "yes i confirm", "yes please",
         "yes please proceed", "yes proceed", "please proceed",

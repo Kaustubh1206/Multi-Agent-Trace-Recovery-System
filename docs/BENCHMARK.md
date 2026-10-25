@@ -96,6 +96,24 @@ new live model runs succeed. The historical generic ValueError reports do not re
 the exact throwing line; new reports preserve safe protocol errors and a project-frame
 `run_error_location` without paths, locals or raw provider bodies.
 
+## Clarification, capabilities and return totals
+
+Clarification replies retain the current request's observed tool facts and purpose.
+They still clear consent, discard the old proposal, reassess policy and prepare a new
+exact action. A new top-level customer request clears those observations; successful
+writes are followed by fresh reads for later requests. The internal continuation flag
+is not accepted as a public customer input.
+
+Every role now sees actual supported team write names, alongside its own scoped tools.
+Prompts distinguish missing facts, missing consent and genuinely unsupported operations.
+Decision proposes the tool before the application asks for approval; Order gathers facts
+and Policy assesses eligibility rather than denying actions absent from its own scope.
+
+Return preflight computes the selected items' purchased-price sum and the amount paid
+for remaining items directly from the current order. The verified final response includes
+both totals. No task IDs, expected evaluator amounts or reference tool arguments enter
+these calculations. A three-day refund guarantee is not introduced.
+
 ## Inspect an existing failed batch
 
 Use the saved artifacts before paying for another model run:

@@ -32,6 +32,8 @@ def context_for(state, adapter):
         else None,
         "validation_error": state.get("error"),
         "handoff_request": state.get("handoff_request", ""),
+        "team_write_tools": adapter.supported_write_tools,
+        "continuing_request": state.get("continuing_request", False),
     }
 
 
@@ -56,10 +58,11 @@ def supervisor(state, *, adapter, agents, policy):
         adapter.invalidate_consent()
         if state.get("turns", 0) >= MAX_TURNS:
             return finish("Conversation limit reached. Please start a new session.")
-        clean = {
-            **state,
-            "observations": [],
-            "plan": None,
+        continuing = state.get("continuing_request", False)
+        observations = state.get("observations", []) if continuing else []
+        clean = {            **state,
+            "observations": observations,
+            "plan": state.get("plan") if continuing else None,
             "policy_result": None,
             "error": None,
             "handoff_request": "",
@@ -73,8 +76,9 @@ def supervisor(state, *, adapter, agents, policy):
         update = {
             "plan": plan,
             "new_request": False,
+            "continuing_request": False,
             "order_complete": False,
-            "observations": [],
+            "observations": observations,
             "policy_result": None,
             "pending_action": None,
             "payment_info": None,
@@ -185,6 +189,7 @@ def customer_reply(state, adapter):
         "confirmation": None,
         "customer_query": reply,
         "new_request": True,
+        "continuing_request": True,
         "next_agent": "supervisor",
     }
 
@@ -277,6 +282,12 @@ def verification_agent(state, *, adapter, agents, policy):
         target = action.call.arguments.get("order_id", action.call.arguments.get("user_id"))
         status = checked["record"].get("status", "updated")
         response = f"{action.call.name} completed for {target}. Status: {status}."
+        if action.call.name == "return_delivered_order_items":
+            effect = action.financial_effect
+            response += (
+                f" Requested refund: ${effect['refund_after_return']:,.2f}."
+                f" Amount paid for remaining items: ${effect['remaining_items_paid']:,.2f}."
+            )
         if status in {"return requested", "exchange requested"}:
             response += " You will receive email instructions for returning the items."
     else:

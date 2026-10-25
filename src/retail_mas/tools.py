@@ -11,7 +11,7 @@ from pydantic import BaseModel, TypeAdapter
 from tau2.domains.retail.tools import RetailTools
 
 from .objects import PendingAction, ToolCall
-from .policy import IDENTITY_TOOLS, ORDER_TOOLS, check_action, explicit_answer
+from .policy import IDENTITY_TOOLS, ORDER_TOOLS, WRITE_TOOLS, check_action, explicit_answer
 
 READ_SCOPES = {
     "identity": IDENTITY_TOOLS,
@@ -54,6 +54,11 @@ class RetailAdapter:
     @property
     def user_id(self):
         return self._user_id
+
+    @property
+    def supported_write_tools(self):
+        """Public team capabilities; the caller's role still controls actual access."""
+        return sorted(WRITE_TOOLS.intersection(self._tools.tools))
 
     def snapshot(self):
         """Independent copy for the test harness, never attached to agent state."""
@@ -151,6 +156,7 @@ class RetailAdapter:
             )
             return {
                 "refund_after_return": round(amount, 2),
+                "remaining_items_paid": round(sum(item.price for item in before.items) - amount, 2),
                 "payment_method_id": args["payment_method_id"],
                 "note": "Return requested; follow-up return instructions by email",
             }
