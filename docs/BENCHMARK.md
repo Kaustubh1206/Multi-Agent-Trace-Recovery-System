@@ -79,6 +79,26 @@ cannot be `validated_success`. The CLI exits 1 for incomplete/error evaluations.
 A fully scored reward-0 trial remains a valid evaluator result and exits normally.
 Independent trials continue after reported model/conversation failures.
 
+## Inspect an existing failed batch
+
+Use the saved artifacts before paying for another model run:
+
+```bash
+uv run python -m retail_benchmark --inspect work/pilot-five
+```
+
+This imports no models, makes no API calls, and changes no trial artifacts. If
+`summary.json` exists it selects that batch's run IDs, excluding stale reports from
+earlier runs in the directory. Otherwise it summarizes all available report files.
+It prints termination/errors, native DB/component results, failed supplementary
+checks, failed NL/communication assertions and the last six dialogue messages.
+Only message role/content is included; provider raw response metadata is omitted.
+
+`validated_success` combines native reward and supplementary checks. Its being false
+does not by itself mean a safety check failed. Incomplete runs must be diagnosed from
+`termination_reason` and `run_error` before interpreting their native reward 0 as
+a completed task-quality measurement.
+
 ## Interpretation and evidence
 
 Many Retail tasks list NL_ASSERTION but provide no assertions. Native NL grading then
