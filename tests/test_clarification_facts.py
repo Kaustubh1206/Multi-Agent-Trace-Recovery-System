@@ -3,7 +3,6 @@
 import json
 
 import pytest
-
 from langchain_core.messages import HumanMessage
 from tau2.data_model.message import AssistantMessage
 
