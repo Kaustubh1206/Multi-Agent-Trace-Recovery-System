@@ -18,6 +18,11 @@ Last full workspace pytest output before the execution environment became unavai
 84 passed, 1 warning in 40.76s
 ```
 
+Published integration commit `e66f453129566f063ea0a044b6b7cace89988e3e` was independently
+verified by [GitHub Actions run 40230528922](https://github.com/Kaustubh1206/Multi-Agent-Trace-Recovery-System/actions/runs/40230528922)
+on Python 3.12.15. Ruff passed; pytest reported **84 passed, 1 warning in 48.63s**.
+The workflow uses intercepted/local model responses and no OpenAI or LangSmith secrets.
+
 The warning is the pinned upstream's deprecated `audioop` import. Ruff lint and format
 checks passed. `git diff --check` passed. The entry-point help command and cached-asset
 verification command ran successfully. Checkpoint resumption was tested with strict
