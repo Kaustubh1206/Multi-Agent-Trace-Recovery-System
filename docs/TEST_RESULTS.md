@@ -50,6 +50,24 @@ used 14 intercepted OpenAI-compatible model responses: `yes` committed and verif
 cancellation, while `no` on a fresh thread made no change. This used the pinned official
 DB/tools, no paid model calls and no cloud upload. The Studio browser UI was not automated.
 
+## Live-failure regression fixes
+
+Published code commit `884e5c55b48573b4e37c45ad37b66e862e9034b5` passed
+[GitHub Actions run 40235672339](https://github.com/Kaustubh1206/Multi-Agent-Trace-Recovery-System/actions/runs/40235672339):
+**103 passed, 1 warning in 67.72s**; Ruff passed. The warning remains upstream audioop.
+
+Regressions cover the supplied task 69, 0 and 1 approval phrases, scope-matched action
+names, conflicting/conditional replies, exact fingerprints and single execution.
+Additional checks preserve observed facts during clarification, clear them on a fresh
+request, expose actual team write capabilities, and derive return/remaining-item totals
+from purchased prices. A different customer's order verifies that those totals are generic.
+The task 47 return regression checks an actual committed DB change and native communication
+checks; user/specialist/judge model responses are intercepted in this offline check.
+
+The historical generic ValueError reports do not retain their exact throwing line.
+New reports include safe protocol diagnostics and project-frame locations. No new live
+model score or claim that all four historical failures are resolved is established here.
+
 ## Official simulator bridge checks
 
 The 15 added integration cases exercise the official text simulator class and native ALL
