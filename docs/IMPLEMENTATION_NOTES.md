@@ -139,10 +139,17 @@ the native `EnvironmentEvaluator` with strict output checking. They also compare
 entire DB against a separately constructed reference DB. This ENV-only integration is not
 the official user simulator or complete benchmark scoring path.
 
-Remaining: wire a half-duplex adapter to the official user simulator/orchestrator, run live
-specialist LLM dialogues, integrate full communication/NL assertion evaluation and review the
-draft labels independently. No API credentials were configured in this environment, so no
-paid LLM calls or full simulated-user trials were run. No test-split task was executed.
+The separate `retail_benchmark` package now connects the official text `UserSimulator`
+to the same graph's customer interrupts and invokes native `evaluate_simulation(ALL)`.
+Its serial loop is a custom bridge; it does not replace or claim to run the upstream
+`Orchestrator`. Simulator guidelines are now a fifth hash-pinned asset. The harness captures
+successful official read/write/transfer results and keeps rejected reads outside native
+tool replay. Native scores, actual-DB checks and required-handoff checks remain separate.
+See `BENCHMARK.md` for the interface, output schema, tested cases and score limitations.
+
+Remaining: run live specialist/simulator dialogues and independently review the draft labels.
+No API credentials were configured in the implementation workspace, so integration trials
+used intercepted model responses. No test-split task was executed.
 Multi-request tasks are handled sequentially through customer turns; autonomous completion
 of an entire queue of subgoals has not been demonstrated with a live model.
 

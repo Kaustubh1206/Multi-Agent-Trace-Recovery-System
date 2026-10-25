@@ -4,8 +4,6 @@ from pathlib import Path
 
 import pytest
 import tau2.domains.retail.data_model as retail_model
-import tau2.domains.retail.environment as retail_environment
-import tau2.domains.retail.tools as retail_tools
 
 from retail_mas.data_loader import COMMIT, sha256
 
@@ -21,10 +19,10 @@ def test_pin_split_and_pilots(dataset):
 
 
 def test_installed_official_sources_match_pin(dataset):
-    for module in [retail_model, retail_environment, retail_tools]:
-        path = Path(inspect.getfile(module))
-        reference = "src/tau2/domains/retail/" + path.name
-        assert sha256(path) == dataset.manifest["code"][reference]["sha256"]
+    installed_root = Path(inspect.getfile(retail_model)).parents[2]
+    for reference, expected in dataset.manifest["code"].items():
+        path = installed_root / reference.removeprefix("src/tau2/")
+        assert sha256(path) == expected["sha256"]
 
 
 def test_test_split_is_held_out(dataset):

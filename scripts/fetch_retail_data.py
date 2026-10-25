@@ -1,4 +1,4 @@
-"""Fetch the four pinned assets; validate hashes before replacing local files."""
+"""Fetch pinned retail assets and simulator guidelines; validate every hash."""
 
 import hashlib
 import json

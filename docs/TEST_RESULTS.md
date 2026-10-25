@@ -1,6 +1,6 @@
 # Observed Phase 1 verification
 
-Run date: October 24, 2026. Python 3.12.14; LangGraph 1.2.17; τ² 1.0.1 pinned
+Run date: October 25, 2026. Python 3.12.14; LangGraph 1.2.17; τ² 1.0.1 pinned
 to `fc0055dc4e0a316c3f83133267fbd6faaa770992`. Exact dependencies are in `uv.lock`.
 
 ```bash
@@ -12,10 +12,10 @@ uv run ruff format --check src tests scripts main.py
 uv run python -m tests.demo
 ```
 
-Observed final pytest output:
+Last full workspace pytest output before the execution environment became unavailable:
 
 ```text
-69 passed, 1 warning in 20.54s
+84 passed, 1 warning in 40.76s
 ```
 
 The warning is the pinned upstream's deprecated `audioop` import. Ruff lint and format
@@ -44,6 +44,19 @@ check returned HTTP 200 for health, graph and schema endpoints. Two real server 
 used 14 intercepted OpenAI-compatible model responses: `yes` committed and verified a
 cancellation, while `no` on a fresh thread made no change. This used the pinned official
 DB/tools, no paid model calls and no cloud upload. The Studio browser UI was not automated.
+
+## Official simulator bridge checks
+
+The 15 added integration cases exercise the official text simulator class and native ALL
+grading with intercepted model responses. Train tasks 0/1 use different exchange preferences;
+69 covers yes/no/ambiguous approval and independent trials; 50 covers actual and missing
+handoff; 47 covers communication/NL grading, missing assertions and judge failure.
+Private simulator instructions and expected criteria remain outside all MAS role contexts.
+
+A subprocess test runs the real CLI, OpenAI SDK and LiteLLM against a local HTTP model stub:
+20 model requests, two independent trials, native results, final DB snapshots and a batch
+summary. No paid model call, live benchmark score or cloud trace upload is established.
+The published copy is also checked by the repository's offline GitHub Actions workflow.
 
 ## Source-backed offline pilots actually run
 
@@ -98,8 +111,9 @@ actual exact tool arguments and validated financial consequences.
 ## Remaining integration work
 
 - Real API-backed specialist dialogues have not been run: no API credentials were configured.
-- The official user simulator/orchestrator bridge and full communication/NL evaluator remain
-  unintegrated. No held-out test task or claimed benchmark pass rate exists.
+- The official text simulator and native full evaluator are integrated through a custom
+  serial bridge and tested with intercepted model responses. Live evaluation remains
+  pending. No held-out test task or claimed benchmark pass rate exists.
 - Ground-truth labels remain draft pending independent review.
 - Non-null task initial state/history, durable sessions and robust autonomous multi-goal
   completion are outside the demonstrated runner behavior.

@@ -1,0 +1,123 @@
+# Automatic Retail conversations and evaluator reports
+
+The separate `retail_benchmark` package connects the official τ²-bench v1.0.1 text
+`UserSimulator` to the existing seven-agent LangGraph MAS and invokes native
+`evaluate_simulation(ALL)`. The source is commit
+`fc0055dc4e0a316c3f83133267fbd6faaa770992`. DB, policy, tasks, split and simulator
+guidelines are hash-pinned. The conversation loop is our serial bridge; the upstream
+`Orchestrator` is not used. No business-agent nodes were added.
+
+## Start with one task
+
+Keep your existing OpenAI API configuration in `.env`:
+
+```bash
+git switch phase-1-retail-mas
+git pull --ff-only
+uv sync --locked
+uv run python scripts/fetch_retail_data.py
+uv run python -m retail_benchmark --tasks 69 --trials 1 --verbose
+```
+
+No terminal customer input is needed. The official simulator receives the private user
+scenario, generates customer replies, and answers clarification/confirmation pauses. Its
+STOP/TRANSFER/OUT-OF-SCOPE tokens end the dialogue. Only generated customer utterances
+enter the MAS; original simulator instructions and reference criteria stay outside it.
+
+The MAS uses `RETAIL_MODEL`. The simulator defaults to the pinned upstream model
+`gpt-4.1-2025-04-14`, with temperature 0, one retry and a 60-second request timeout.
+Override it with `--user-model` or `RETAIL_USER_MODEL`. Optional
+`RETAIL_USER_REASONING_EFFORT` sets reasoning effort and omits simulator temperature.
+The native NL judge retains upstream `gpt-4.1-2025-04-14` and temperature 0.
+Model IDs in CLI/env are native OpenAI IDs; the simulator adapter adds the LiteLLM
+provider prefix. Simulator, MAS and judge use the OpenAI key and incur API usage.
+
+Run five training tasks, then repeat trials if useful:
+
+```bash
+uv run python -m retail_benchmark --tasks 69 0 1 47 50 --output work/pilot-five
+uv run python -m retail_benchmark --tasks 69 --trials 3 --seed 300 --max-turns 20
+```
+
+Trials run serially with fresh DB, identity, approval, graph/checkpointer and thread ID.
+The default limit is 30 simulator replies including the stop reply. Existing graph step
+limits also apply. The simulator seed increases by one per trial; API sampling and MAS
+outputs are not guaranteed deterministic. Reports preserve the model settings and seed.
+The 40-task test split stays held out: `--tasks 5` is rejected before generation.
+Non-null initial-state/history overrides remain unsupported and fail explicitly.
+
+## Saved files
+
+Files default to the Git-ignored `work/benchmark/` directory. Each trial has a unique stem
+`task-<id>-trial-<n>-<run_id>`:
+
+| File | Contents |
+|---|---|
+| `*.simulation.json` | Native `SimulationRun`: dialogue/tool messages, termination, raw reward |
+| `*.report.json` | Provenance, models, hashes, native ENV/ALL results, checks and errors |
+| `*.final_db.json` | Actual final simulated DB snapshot |
+| `summary.json` | Most recent batch; older trial files remain available |
+
+The initial DB is reproducible from the pinned asset/hash, loaded afresh per trial.
+Tool calls run serially and their messages contain no simultaneous customer response.
+Preflight copies are excluded. Successful identity lookups record the official scalar
+output for replay; the MAS keeps its normal authenticated-identity adapter result.
+Rejected reads, including guard refusals and lookup errors, are reported separately and
+omitted from native replay. Strict replay checks successful tool outputs, and a separate
+assertion compares the actual DB with that replayed DB.
+
+`official_result` and `native_reward` preserve the upstream score.
+`supplementary_checks` separately checks authentication, owned writes, exact consent,
+duplicate writes, unrelated record changes, verification and required human handoff.
+`validated_success` requires completed native grading, reward 1 and all those checks.
+This is our stricter trial flag, not a published benchmark metric or a reviewed label.
+
+The runner saves an ENV result first so it survives a later judge failure. Model/turn
+failures are `incomplete_run`; grading failures have `evaluation_status=error`. Missing
+NL judge assertions are flagged while preserving any raw native result. These cases
+cannot be `validated_success`. The CLI exits 1 for incomplete/error evaluations.
+A fully scored reward-0 trial remains a valid evaluator result and exits normally.
+Independent trials continue after reported model/conversation failures.
+
+## Interpretation and evidence
+
+Many Retail tasks list NL_ASSERTION but provide no assertions. Native NL grading then
+returns a vacuous success without a judge call. Task 47 has real assertions and uses the
+paid judge. Communication grading is substring matching. Native action diagnostics may
+miss reference reads even when an alternative valid path produces the expected DB.
+ACTION is not in these pilot tasks' reward basis. Rejected lookup attempts also remain
+outside native action diagnostics, in the rejection list and customer dialogue.
+
+Task 50 can receive native reward 1 for unchanged DB without a human transfer. A separate
+required-handoff check uses the official reference transfer action, actual transfer tool
+and customer announcement to prevent marking that no-op as `validated_success`.
+Reference actions, expected arguments and judge outcomes never become MAS inputs.
+
+Offline checks run the official simulator class and native graders with intercepted model
+responses. They cover train cases 0/1 (different exchange preferences), 69 (confirmation
+and independent trials), 50 (actual/missing handoff), and 47 (communication, NL coverage
+and judge failure). Task 47 deliberately uses incomplete read-only trajectories in these
+grading checks. Existing task 84 graph/tool tests remain separate.
+
+A subprocess CLI test exercises the real OpenAI SDK and LiteLLM against a local HTTP
+model stub, including saved reports. All 84 tests passed in the last available workspace
+run. The published copy is checked by the offline GitHub Actions workflow.
+
+**No live benchmark trial or pass rate is established in this workspace.** Run the first
+real API pilot on your machine and inspect the result before expanding it.
+Labels remain draft. No causal attribution, fault injection, recovery or repair was added.
+
+## LangSmith and module layout
+
+Existing LangSmith tracing settings trace MAS calls in automatic trials. The thread ID
+matches the report's `run_id`; metadata includes `execution_mode=simulated_user`, task,
+trial and seed. Simulator instructions and grader references stay outside that graph.
+Reports remain local; LangSmith dataset/experiment uploads are not implemented.
+
+| Module | Responsibility |
+|---|---|
+| `simulator.py` | Official simulator subclass selecting pinned guidelines |
+| `recording.py` | Successful tool results and consent evidence for grading |
+| `runner.py` | Bounded dialogue, interrupt resumes, fresh trials and report construction |
+| `evaluation.py` | Native grading on pinned fixtures and supplementary assertions |
+| `__main__.py` | Task/trial CLI and JSON artifact saving |

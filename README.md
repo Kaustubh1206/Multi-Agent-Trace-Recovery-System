@@ -103,6 +103,25 @@ uv run pytest tests -q --pilot-report work/offline_pilot_results.json
 uv run ruff check src tests scripts main.py
 ```
 
+## Automatic conversations and evaluator reports
+
+The separate benchmark runner connects the official pinned text user simulator to the
+same seven-agent MAS and grades the resulting conversation with the native τ² evaluator:
+
+```bash
+uv sync --locked
+uv run python scripts/fetch_retail_data.py
+uv run python -m retail_benchmark --tasks 69 --trials 1 --verbose
+# After reviewing the first result, run five train tasks:
+uv run python -m retail_benchmark --tasks 69 0 1 47 50 --output work/pilot-five
+```
+
+This uses your OpenAI API key for MAS, simulator and any required LLM judge calls. It runs
+serially, resets the DB/identity/approval per trial, and saves native scores separately from
+supplementary consent, DB-integrity and handoff checks. No live benchmark validation has
+been performed here. See [the benchmark guide](docs/BENCHMARK.md) for model settings,
+report fields, native scoring limitations and offline verification evidence.
+
 ## Visualize the experiment in LangSmith
 
 For the interactive graph canvas, use **`uv run langgraph dev`** from the repository root
@@ -144,6 +163,7 @@ Start with `graph.py`, then the seven named agent functions in `nodes.py`.
 | `data_loader.py`, `scripts/fetch_retail_data.py` | Pinned assets and fresh fixtures |
 | `cli.py`, `main.py` | Manual customer loop |
 | `langgraph.json`, `studio.py` | Local Agent Server / Studio entry point and isolated thread sessions |
+| `src/retail_benchmark/` | Separate automatic customer loop, actual tool trajectory and native grading |
 | `tests/` | Scripted model tests, real tools and separate benchmark evaluator |
 
 Each customer/task/trial needs a **new adapter and graph**. The CLI creates them on startup.
@@ -161,8 +181,10 @@ lockfile and manifest. Asset hashes and source URLs are in
 See [test results](docs/TEST_RESULTS.md), [raw offline ENV results](docs/offline_pilot_results.json)
 and [implementation notes](docs/IMPLEMENTATION_NOTES.md). Pilots `0`, `1`, `47`, `50`, `69`,
 `84` use scripted LLM outputs and real official tools. They demonstrate plumbing and guards,
-not live-model performance. The official user simulator and full communication/NL grading
-remain unintegrated; no full benchmark score is claimed. Ground-truth labels remain draft.
+not live-model performance. The official text simulator and native communication/NL grading
+are now integrated through the separate benchmark runner and tested with intercepted model
+responses. Live benchmark validation remains pending; no pass rate is claimed. Ground-truth
+labels remain draft.
 
 The pinned upstream has a pending multi-item modification defect; affected operations fail
 closed. Multi-item exchanges are tested. Non-null task initial states fail explicitly.

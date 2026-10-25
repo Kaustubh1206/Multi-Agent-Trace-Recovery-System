@@ -18,6 +18,11 @@
     "84"
   ],
   "assets": {
+    "simulation_guidelines.md": {
+      "upstream_path": "data/tau2/user_simulator/simulation_guidelines.md",
+      "source_url": "https://github.com/sierra-research/tau2-bench/blob/fc0055dc4e0a316c3f83133267fbd6faaa770992/data/tau2/user_simulator/simulation_guidelines.md",
+      "sha256": "740a29dfa64d7bc08eea3bf7493575b914a63f744acbaf7f199ee07eddaf72d3"
+    },
     "db.json": {
       "upstream_path": "data/tau2/domains/retail/db.json",
       "source_url": "https://github.com/sierra-research/tau2-bench/blob/fc0055dc4e0a316c3f83133267fbd6faaa770992/data/tau2/domains/retail/db.json",
@@ -51,6 +56,26 @@
     "src/tau2/domains/retail/data_model.py": {
       "sha256": "f5ad09590953855cc49d2ab2ad5c0594be408cae74d1500fb278e5a6bf2c50d6",
       "source_url": "https://github.com/sierra-research/tau2-bench/blob/fc0055dc4e0a316c3f83133267fbd6faaa770992/src/tau2/domains/retail/data_model.py"
+    },
+    "src/tau2/user/user_simulator.py": {
+      "sha256": "bfe1defe73bce25450b2be697c249d6cec2f3ba25a70e32e2452ba75a53a630c",
+      "source_url": "https://github.com/sierra-research/tau2-bench/blob/fc0055dc4e0a316c3f83133267fbd6faaa770992/src/tau2/user/user_simulator.py"
+    },
+    "src/tau2/user/user_simulator_base.py": {
+      "sha256": "e6c4bae08fb7ae6fa6ee5ee29624bc35e0dd6c6fe8ffeab065592c7b51fa32f2",
+      "source_url": "https://github.com/sierra-research/tau2-bench/blob/fc0055dc4e0a316c3f83133267fbd6faaa770992/src/tau2/user/user_simulator_base.py"
+    },
+    "src/tau2/evaluator/evaluator.py": {
+      "sha256": "204d95a82812402f2fee989250392d3c66de702a8bcc20258c7e2a8153a1ea8d",
+      "source_url": "https://github.com/sierra-research/tau2-bench/blob/fc0055dc4e0a316c3f83133267fbd6faaa770992/src/tau2/evaluator/evaluator.py"
+    },
+    "src/tau2/evaluator/evaluator_env.py": {
+      "sha256": "b53ebfe6b0b06d7a2071b5f9dd03ee6ca8ac6000b0ef44f3bd345b346c30d8ac",
+      "source_url": "https://github.com/sierra-research/tau2-bench/blob/fc0055dc4e0a316c3f83133267fbd6faaa770992/src/tau2/evaluator/evaluator_env.py"
+    },
+    "src/tau2/evaluator/evaluator_nl_assertions.py": {
+      "sha256": "cb6b3758cdceb02a726732b4ee1af618affcc08f8ab84b44f060146b8f3ad90a",
+      "source_url": "https://github.com/sierra-research/tau2-bench/blob/fc0055dc4e0a316c3f83133267fbd6faaa770992/src/tau2/evaluator/evaluator_nl_assertions.py"
     }
   }
 }
