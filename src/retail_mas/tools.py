@@ -158,6 +158,7 @@ class RetailAdapter:
                 "refund_after_return": round(amount, 2),
                 "remaining_items_paid": round(sum(item.price for item in before.items) - amount, 2),
                 "payment_method_id": args["payment_method_id"],
+                "refund_timing": "A refund by a requested deadline cannot be guaranteed.",
                 "note": "Return requested; follow-up return instructions by email",
             }
         if name == "exchange_delivered_order_items":

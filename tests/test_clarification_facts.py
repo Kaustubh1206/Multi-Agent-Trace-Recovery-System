@@ -2,6 +2,8 @@
 
 import json
 
+import pytest
+
 from langchain_core.messages import HumanMessage
 from tau2.data_model.message import AssistantMessage
 
@@ -137,3 +139,92 @@ def test_automatic_return_has_real_db_and_communication_outcomes(dataset, monkey
     assert db.orders["#W9502127"].status == "return requested"
     assert db.orders["#W9502127"].return_items == sorted(RETURN_ITEMS)
     assert not agents.steps
+
+
+@pytest.mark.parametrize("reply", [
+    "Yes, please proceed. And just to confirm, I’ll get $1,095.55 refunded to my PayPal "
+    "within 3 days, right? Also, thanks for letting me know the remaining item cost $1,528.14.",
+    "Yes, please go ahead and process the return. I expect the $1,095.55 refund to my PayPal "
+    "within 3 days. Thank you!",
+])
+def test_return_deadline_expectation_needs_new_unqualified_approval(
+    adapter, dataset, record_pilot, reply
+):
+    steps = [
+        *return_steps()[:-2],
+        plan(),
+        ("order", {"kind": "complete"}),
+        policy_review(),
+        ("decision", proposal(
+            "return_delivered_order_items", order_id="#W9502127",
+            item_ids=RETURN_ITEMS, payment_method_id="paypal_2433177",
+        )),
+        *after_write(),
+    ]
+    graph, agents, config, _ = session(
+        adapter, dataset, steps,
+        "Daiki Johnson ZIP 80273, no email. Return a vacuum and air purifier in #W9502127.",
+        "47",
+    )
+    result = resume(graph, config, "The canister vacuum and air purifier, original PayPal.")
+    effect = result["pending_action"].financial_effect
+    assert "cannot be guaranteed" in effect["refund_timing"]
+    original = adapter.snapshot()
+    result = resume(graph, config, reply)
+    assert adapter.write_count == 0
+    assert adapter.snapshot() == original
+    assert result["confirmation"] is None
+    pause = result["__interrupt__"][0].value
+    assert pause["kind"] == "confirmation"
+    assert "A refund by a requested deadline cannot be guaranteed." in pause["message"]
+    assert result["pending_action"].call.arguments["item_ids"] == RETURN_ITEMS
+    correction = [
+        context for role, _, context in agents.contexts if role == "supervisor"
+    ][-1]
+    assert correction["customer_query"] == reply
+    assert "Resolve the customer's" in correction["handoff_request"]
+    assert correction["observations"]
+    final = resume(graph, config, "Yes, please proceed with the return and refund.")
+    assert adapter.write_count == 1
+    assert final["verification_result"]["verified"]
+    assert "$1,095.55" in final["response"] and "$1,528.14" in final["response"]
+    assert "cannot be guaranteed" in final["response"]
+    assert not agents.steps
+    record_pilot("47", adapter)
+
+
+def test_required_refund_deadline_can_transfer_without_an_unapproved_return(adapter, dataset):
+    from retail_mas.nodes import TRANSFER_MESSAGE
+
+    steps = [
+        *return_steps()[:-2],
+        plan("unsupported"),
+        ("policy", {
+            "allowed": False,
+            "reason": "The required refund deadline cannot be guaranteed.",
+        }),
+        ("decision", {
+            "kind": "transfer",
+            "text": "Customer requires a guaranteed refund deadline outside the return tools.",
+        }),
+    ]
+    graph, agents, config, _ = session(
+        adapter, dataset, steps,
+        "Daiki Johnson ZIP 80273, no email. Return a vacuum and air purifier in #W9502127.",
+        "47",
+    )
+    result = resume(graph, config, "The canister vacuum and air purifier, original PayPal.")
+    assert result["__interrupt__"][0].value["kind"] == "confirmation"
+    original = adapter.snapshot()
+    final = resume(
+        graph, config, "Only proceed if a refund within 3 days is guaranteed; otherwise transfer me."
+    )
+    assert final["response"] == TRANSFER_MESSAGE
+    assert adapter.write_count == 0
+    assert adapter.snapshot() == original
+    assert not agents.steps
+    calls = [
+        call for message in adapter.trajectory
+        if message.role == "assistant" for call in message.tool_calls or []
+    ]
+    assert [call.name for call in calls] == ["transfer_to_human_agents"]

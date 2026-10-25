@@ -134,6 +134,18 @@ for remaining items directly from the current order. The verified final response
 both totals. No task IDs, expected evaluator amounts or reference tool arguments enter
 these calculations. A three-day refund guarantee is not introduced.
 
+The task 47 rerun already communicated the correct amounts, but the customer tied
+approval to a three-day refund expectation. Those replies remain unapproved. The
+clarification handoff now retains that unresolved question/condition, so specialists
+can address it. Every prepared return summary and verified response explicitly says
+a refund by a requested deadline cannot be guaranteed. A new unqualified approval is
+still required before writing.
+
+The pinned return policy promises a return-request status and email instructions;
+it specifies no return-refund deadline. The 5–7 business-day language elsewhere applies
+to cancellation/payment-change refunds and is not reused as a return promise. No
+deadline or reference answer is added to the official tools or evaluator.
+
 ## Inspect an existing failed batch
 
 Use the saved artifacts before paying for another model run:

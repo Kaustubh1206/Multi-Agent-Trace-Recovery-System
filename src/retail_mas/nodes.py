@@ -68,12 +68,13 @@ def supervisor(state, *, adapter, agents, policy):
             return finish("Conversation limit reached. Please start a new session.")
         continuing = state.get("continuing_request", False)
         observations = state.get("observations", []) if continuing else []
+        handoff_request = state.get("handoff_request", "") if continuing else ""
         clean = {            **state,
             "observations": observations,
             "plan": state.get("plan") if continuing else None,
             "policy_result": None,
             "error": None,
-            "handoff_request": "",
+            "handoff_request": handoff_request,
         }
         plan = agents.invoke(
             "supervisor",
@@ -97,7 +98,7 @@ def supervisor(state, *, adapter, agents, policy):
             "confirmation": None,
             "awaiting_customer": None,
             "error": None,
-            "handoff_request": "",
+            "handoff_request": handoff_request,
             "steps": 1,
             "turns": state.get("turns", 0) + 1,
         }
@@ -215,6 +216,12 @@ def customer_reply(state, adapter):
         "customer_query": reply,
         "new_request": True,
         "continuing_request": True,
+        "handoff_request": (
+            "The previous reply did not give unqualified approval. Resolve the customer's "
+            "questions, changed details or conditions before asking again. Explain unsupported "
+            "terms rather than silently repeating the proposal; never promise an unsupported deadline."
+            if kind == "confirmation" else ""
+        ),
         "next_agent": "supervisor",
     }
 
@@ -258,6 +265,7 @@ def decision_agent(state, *, adapter, agents, policy):
         return {
             **update,
             "pending_action": action,
+            "handoff_request": "",
             "error": None,
             **ask_customer(confirmation_summary(action), "confirmation"),
         }
@@ -312,6 +320,7 @@ def verification_agent(state, *, adapter, agents, policy):
             response += (
                 f" Requested refund: ${effect['refund_after_return']:,.2f}."
                 f" Amount paid for remaining items: ${effect['remaining_items_paid']:,.2f}."
+                f" {effect['refund_timing']}"
             )
         if status in {"return requested", "exchange requested"}:
             response += " You will receive email instructions for returning the items."

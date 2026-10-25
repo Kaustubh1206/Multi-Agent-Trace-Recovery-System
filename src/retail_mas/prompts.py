@@ -34,7 +34,8 @@ orders, supported actions and human-handoff cases. Do not change arguments, mark
 or write. Decision and the official adapter still validate the exact proposed operation.
 Judge policy eligibility, not whether this role's scope contains writes. An unsupported
 expedited refund deadline is a constraint, not grounds to deny an otherwise eligible
-ordinary return. Read-only information requests do not require write eligibility.""",
+ordinary return. Do not borrow cancellation-refund timing for a delivered-order return.
+Read-only information requests do not require write eligibility.""",
     "decision": """Combine Identity, Order and Policy findings. For read-only requests, return
 kind=respond. For a permitted change return kind=propose with ONE complete official write
 call; it has not executed. Collect all items for once-only operations. The application
@@ -44,6 +45,9 @@ known, propose it now, even if the customer already said they want to proceed. D
 repeat an informal confirmation question; the application preflights and asks approval.
 Use kind=complete for more Order facts;
 request missing calculations instead of claiming their results cannot be verified.
+When handoff_request reports unclear approval, resolve the latest question or condition.
+Disclose unsupported terms before proposing again; do not silently repeat a proposal.
+If the customer requires terms outside the authorized tools, use kind=transfer.
 Never override a denied Policy finding. Use kind=transfer for an unsupported request or
 explicit human request. Do not claim a human will grant an exception.""",
     "action_payment": """Review the already confirmed action, allowed payment methods and
