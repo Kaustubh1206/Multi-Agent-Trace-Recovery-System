@@ -83,7 +83,41 @@ items, order, payment, conditions, missing approval and mismatched operations wi
 mutating the DB. A separate runner check preserves immediate simulator STOP handling,
 including a stop message that also contains approval. The seven-node graph, executor,
 simulator and native grading rules are unchanged. This is offline evidence; the fix
-still needs a new live task 0 trial. Tasks 1 and 47 need their current failure details.
+still needs a new live task 0 trial. At that checkpoint, tasks 1 and 47 still awaited their current failure details; follow-up evidence is below.
+
+## Follow-up task 1 and 47 failures
+
+The supplied task 1 rerun (`d548df00-5e42-4507-8be8-1845d8f824fd`) had zero
+writes and failed DB matching. The assistant asked for prose approval without preparing
+the exchange. The excerpt does not identify which role emitted the question.
+Code commit `88ddad478271f9f679bce0fd5e90fbcfc20b446e` intercepts common
+unprepared approval questions and allows one corrective specialist retry. Its
+[GitHub Actions run 40241046497](https://github.com/Kaustubh1206/Multi-Agent-Trace-Recovery-System/actions/runs/40241046497)
+passed **122 tests, 1 warning in 68.45s**; Ruff passed. Regression cases inject the
+supplied question into Supervisor, Order and Decision paths, obtain a prepared
+thermostat-only exchange, assert zero writes before approval, then verify one commit
+and native ENV DB agreement. Repeated invalid approval requests fail closed.
+
+The task 47 rerun (`75cf9331-d4d2-4b89-a746-02deff5be994`) also had zero writes.
+It already communicated the correct refund and remaining-item totals, so communication
+checks were not the problem. Both supplied replies coupled approval to a three-day
+refund expectation. They remain unapproved; the fix carries unresolved conditions
+through clarification and discloses the lack of a guaranteed return-refund deadline in
+prepared summaries and verified responses. The pinned return policy gives no deadline;
+cancellation/payment-change timing must not be reused for returns.
+
+Final code revision `ef64dec5930870a7677e3dbf955e455f0f3066a2` passed
+[GitHub Actions run 40241565097](https://github.com/Kaustubh1206/Multi-Agent-Trace-Recovery-System/actions/runs/40241565097):
+**125 passed, 1 warning in 79.48s**; Ruff passed. Each exact deadline-qualified reply
+leaves the DB unchanged; a subsequent unqualified approval permits one verified return
+with native ENV DB agreement. An insistence on an unavailable guarantee instead tests
+an actual human transfer with zero writes. That handoff check is not a claim of native
+task 47 success. The warning remains the pinned upstream audioop import.
+
+These runs use scripted model outputs and real fixtures/tools. No new paid trial,
+live pass rate, evaluator override, held-out tuning or completed ground-truth label is
+established. The seven-node graph and deterministic write authorization remain intact.
+See `BENCHMARK.md` for the conservative wording check's limits.
 
 ## Official simulator bridge checks
 
@@ -150,7 +184,8 @@ actual exact tool arguments and validated financial consequences.
 
 ## Remaining integration work
 
-- Real API-backed specialist dialogues have not been run: no API credentials were configured.
+- Paid API-backed trials have not been executed by CI. The user-supplied live failures
+  above are diagnostic evidence; fixes still await new live trials.
 - The official text simulator and native full evaluator are integrated through a custom
   serial bridge and tested with intercepted model responses. Live evaluation remains
   pending. No held-out test task or claimed benchmark pass rate exists.

@@ -190,7 +190,7 @@ A subprocess CLI test exercises the real OpenAI SDK and LiteLLM against a local 
 model stub, including saved reports. All 84 tests passed in the last available workspace
 run. The published copy is checked by the offline GitHub Actions workflow.
 
-**No live benchmark trial or pass rate is established in this workspace.** Run the first
+**No live benchmark trial or pass rate is established in this workspace.** Run a new
 real API pilot on your machine and inspect the result before expanding it.
 Labels remain draft. No causal attribution, fault injection, recovery or repair was added.
 
