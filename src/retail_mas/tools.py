@@ -162,7 +162,20 @@ class RetailAdapter:
                 "note": "Return requested; follow-up return instructions by email",
             }
         if name == "exchange_delivered_order_items":
+            changes = []
+            for old_id, new_id in zip(args["item_ids"], args["new_item_ids"]):
+                original = next(item for item in before.items if item.item_id == old_id)
+                replacement = self._tools.db.products[original.product_id].variants[new_id]
+                changes.append({
+                    "product": original.name,
+                    "item_id": old_id,
+                    "new_item_id": new_id,
+                    "from_options": dict(original.options),
+                    "to_options": dict(replacement.options),
+                    "replacement_price": replacement.price,
+                })
             return {
+                "item_changes": changes,
                 "price_difference": updated.exchange_price_difference,
                 "payment_method_id": args["payment_method_id"],
                 "note": "Exchange requested; follow-up instructions by email; no new order needed",

@@ -57,6 +57,8 @@ def test_live_cancellation_reply_completes_without_replanning(dataset, monkeypat
 
 @pytest.mark.parametrize("task_id,include_keyboard,reply", [
     ("0", True, EXCHANGE_REPLY),
+    ("0", True, "Yes, please proceed with the exchange as described. "
+     "This covers everything I wanted to change. Thank you!"),
     ("0", True, "Yes, please proceed. That covers everything I want to exchange. Thanks!"),
     ("0", True, "Yes, please proceed. That includes all the items I want to exchange. Thank you!"),
     ("1", False, "Yes, proceed. That’s everything I want changed. Thank you!"),
@@ -198,6 +200,10 @@ def test_item_acknowledgements_are_scoped_to_the_pending_operation(reply, action
     "Yes, please proceed. That covers everything I want to exchange in order #W2417020.",
     "Yes? Please proceed. That covers everything I want to exchange.",
     "That covers everything I want to exchange. Thanks!",
+    "Yes, please proceed with the exchange as described, but change the payment method.",
+    "Yes, please proceed with the exchange as described if the refund arrives today.",
+    "Yes, please proceed with the return as described. This covers everything I wanted to change.",
+    "Yes, please proceed with the exchange as described for order #W2417020.",
     "Yes, please proceed. That includes all the items I want to exchange. ###STOP###",
 ])
 def test_item_acknowledgement_cannot_hide_changed_or_missing_approval(adapter, reply):

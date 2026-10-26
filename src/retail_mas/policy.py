@@ -28,12 +28,14 @@ ORDER_TOOLS = {
 def asks_for_action_approval(text: str) -> bool:
     """Catch common approval questions that must come from a prepared action."""
     text = " ".join(text.casefold().split())
+    # Missing facts and a choice of an alternative action are not final authorization.
+    if re.search(r"\b(?:what|which|why|reason)\b", text):
+        return False
     approval = re.search(
         r"\b(?:please confirm|please approve|please authorize|"
         r"your confirmation|your approval|your consent)\b"
         r"|\b(?:can|could|would|will) you (?:please )?(?:confirm|approve|authorize)\b"
-        r"|\b(?:may|shall|should|can) (?:i|we) (?:proceed|go ahead|submit|process)\b"
-        r"|\b(?:do you want|would you like) (?:me|us) to\b",
+        r"|\b(?:may|shall|should) (?:i|we) (?:proceed|go ahead)\b",
         text,
     )
     action = re.search(
@@ -63,12 +65,14 @@ def explicit_answer(reply: str, action_name: str | None = None) -> str:
     if item_verb:
         acknowledgement = (
             r"(?:(?:this|that) (?:covers|includes)|that's|that is|this is) "
-            rf"(?:everything|all (?:the )?items) i want (?:changed|to {item_verb})"
+            rf"(?:everything|all (?:the )?items) i (?:want|wanted) "
+            rf"(?:changed|to (?:change|{item_verb}))"
         )
         normalized = re.sub(rf" (?:{acknowledgement})$", "", normalized, count=1)
         normalized = re.sub(
             rf"^yes (?:{acknowledgement})(?: |$)", "yes ", normalized, count=1
         ).strip()
+    normalized = normalized.removesuffix(" as described")
     approvals = {
         "yes", "yes confirm", "i confirm", "yes i confirm", "yes please",
         "yes please proceed", "yes proceed", "please proceed",

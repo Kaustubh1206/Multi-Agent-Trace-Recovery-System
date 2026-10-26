@@ -89,3 +89,26 @@ API-backed runs. No live pass rate or dollar saving has been established for thi
 Ground-truth labels remain draft. Non-null initial-state/history overrides, durable
 sessions and multiworker DB synchronization are not supported. The documented upstream
 pending multi-item modification defect remains guarded rather than patched silently.
+
+## Follow-up clarification and variant selection
+
+Fallback-choice and missing-information questions are distinct from final authorization.
+A denied action may lead Decision to ask about an alternative; such questions do not
+authorize a write and must not be rejected merely for mentioning confirmation. The
+canonical prepared-action approval remains mandatory before the executor runs.
+
+Exchange summaries now show each original/replacement pair's observed options and
+replacement price, alongside IDs and the price difference. These values come from the
+current official DB, are copied rather than shared with it, and are bound into the action
+fingerprint. This makes an unintended option visible to the customer.
+
+The supplied task 0 run selected a white-backlit keyboard. The pinned reference expects
+the no-backlight fallback. A successful tool call therefore does not imply a native
+benchmark pass. The first customer utterance did not state that fallback explicitly;
+the intervening option-selection exchange is still needed to distinguish agent selection
+error from simulator preference drift. No expected variant IDs are inserted into MAS
+prompts or tool routing, and evaluator criteria are unchanged.
+
+The conservative approval grammar additionally handles "as described" and past-tense
+item-list acknowledgements. Conditions, changed IDs/payment details and conflicting
+operation names remain unapproved.

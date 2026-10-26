@@ -128,6 +128,10 @@ def agent_step(role, state, adapter, agents, policy, tools, allowed):
             raise ValueError(f"Invalid {role} output kind: {step.kind}")
         if step.kind in {"tool", "propose"} and step.tool is None:
             raise ValueError("A tool/proposal step requires a tool call")
+        finding = state.get("policy_result")
+        if step.kind == "ask" and finding is not None and not finding.allowed:
+            # A denied action may need an alternative or missing fact, not consent.
+            return step
         if step.kind not in {"ask", "respond"} or not asks_for_action_approval(step.text):
             return step
         correction = (
