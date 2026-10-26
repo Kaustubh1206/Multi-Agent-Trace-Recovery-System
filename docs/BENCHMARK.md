@@ -103,11 +103,13 @@ current official DB, are copied rather than shared with it, and are bound into t
 fingerprint. This makes an unintended option visible to the customer.
 
 The supplied task 0 run selected a white-backlit keyboard. The pinned reference expects
-the no-backlight fallback. A successful tool call therefore does not imply a native
-benchmark pass. The first customer utterance did not state that fallback explicitly;
-the intervening option-selection exchange is still needed to distinguish agent selection
-error from simulator preference drift. No expected variant IDs are inserted into MAS
-prompts or tool routing, and evaluator criteria are unchanged.
+the no-backlight fallback. The full supplied option-selection exchange confirms that
+the MAS offered both options and the user simulator explicitly chose white. That choice
+deviated from the simulator's private fallback instruction. The MAS should honor the
+observed customer choice, while native reward 0 remains the recorded benchmark outcome.
+Record this observed simulator deviation alongside the raw score; do not silently discard
+the run, relabel it successful or force the hidden expected variant into the agents.
+No expected variant IDs are inserted into MAS prompts/routing; evaluator criteria are unchanged.
 
 The conservative approval grammar additionally handles "as described" and past-tense
 item-list acknowledgements. Conditions, changed IDs/payment details and conflicting

@@ -93,3 +93,44 @@ Historical `offline_demo.txt` and `offline_pilot_results.json` belong to that ea
 checkpoint and are not refreshed run artifacts for this branch. Ground-truth labels
 remain draft. Non-null initial-state/history overrides, durable/multiworker sessions and
 the documented pending multi-item upstream defect remain limitations.
+
+## Follow-up smoke-run regressions
+
+User-supplied task 69 run `c68c6adc-230d-4491-90e2-8cdc24081c1f` stopped with
+`decision repeated an unprepared approval request`. It used 12 MAS requests with
+25,590 reported input tokens and 703 output tokens. The exact rejected question is not
+present in the terminal excerpt. The approval-text filter could incorrectly intercept
+missing-information/fallback-choice questions; it now allows these and permits Decision
+to clarify an alternative after a Policy denial. This does not authorize a write.
+Tests cover an ineligible pending-order return followed by reason clarification, a fresh
+prepared cancellation, and exact approval, using task 69's real fixture/native grading.
+
+Task 0 run `101b8e4f-6de7-4052-9922-f786b2278423` completed one exchange but received
+native reward 0. The supplied full dialogue shows that the MAS offered white-backlit
+and no-backlight full-size clicky keyboards, and the simulator explicitly chose white:
+`6342039236`. Its private scenario instead specifies the no-backlight fallback:
+`7706410293`. The catalog confirms these options and prices. This is an observed
+simulator preference deviation, not evidence that the MAS ignored an explicit public
+no-backlight choice. The reference criterion remains unchanged and the raw score stays 0.
+
+The unnecessary repeated confirmation was a separate parser issue. The exact reply
+"Yes, please proceed with the exchange as described. This covers everything I wanted
+to change. Thank you!" now approves the prepared operation without replanning. Changed
+IDs/payment, conditions and conflicting operation labels remain unapproved.
+
+Exchange preflight now includes copied original/replacement options and replacement
+prices in its financial-effect summary. This makes the chosen variant visible, binds it
+to the fingerprint and prevents summary mutation from changing the DB before execution.
+Generic role guidance preserves unspecified options and requires asking about unavailable
+combinations. It contains no source-task IDs or expected replacement IDs.
+
+Code revision `658625b0cc1f08ec00092a8e3f0248db572b90f2` passed
+[GitHub Actions run 40297632461](https://github.com/Kaustubh1206/Multi-Agent-Trace-Recovery-System/actions/runs/40297632461):
+**144 passed, 1 warning in 100.67s**; Ruff passed. The warning is upstream audioop.
+Negative grading tests preserve native reward 0 for a confirmed white-backlit exchange;
+the no-backlight counterpart retains native reward 1 in the offline fixture. Both use
+real official tools/graders with scripted dialogue and specialist outputs.
+
+No new live trial, benchmark pass rate or automatic simulator-fidelity classifier is
+established here. The task 69 fix still needs an API-backed rerun. Existing draft oracle
+labels, official criteria and held-out split are unchanged.
