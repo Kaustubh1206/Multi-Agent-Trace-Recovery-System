@@ -1,157 +1,26 @@
-# Phase 1 implementation notes
+# Custom five-agent implementation
 
-Scope: functional retail MAS with optional LangSmith experiment visualization. No custom
-research tracing framework, failure attribution, injector, anomaly detector, recovery, replay,
-or repair memory was implemented. The attached proposal
-is reference context; its later-phase architecture did not expand this implementation's scope.
+The original seven-agent experiment is preserved on `phase-1-retail-mas`.
+This branch keeps the same package layout, dependencies, pinned data and native evaluator.
 
-## Audit and provenance
+Supervisor, Identity, Order/Product, Policy and Decision remain independently prompted
+LLM roles. The normal path is sequential. Deterministic routing handles authentication
+prerequisites and handoffs; tool calls remain serial. Decision pauses for confirmation,
+then invokes the unchanged guarded adapter and deterministic DB verification directly.
+There are no Action/Payment or Verification LLM agents.
 
-- Target repository: `Kaustubh1206/Multi-Agent-Trace-Recovery-System`, initial commit
-  `285ce7c` (`Setup and Enviornment`). The separately attached `MATRACE` checkout was untouched.
-- Initial target files: `main.py`, `pyproject.toml`, `uv.lock`, `requirements.txt`, empty
-  `README.md`, `.python-version`. No business implementation existed to overwrite.
-- Style reviewed: `states.py`, `nodes.py`, `edges.py`, `objects.py`, `prompts.py`, `models.py`
-  and `src/creating_analysts.py` in the user's research-assistant repository. The implementation
-  retains small functions, typed state and structured outputs, with current graph APIs.
-- The uploaded data guide is preserved under its original name. The proposal's text was
-  extracted from the supplied DOCX to `MA_TRACE_Final_Retail_MAS_Proposal.txt`; figures are
-  not reproduced in the text extraction.
-- AgentTether's anonymous README was inaccessible through the web tool. No source code,
-  repair architecture, or compatibility claims were inferred from it.
-- τ² `v1.0.1` annotated tag resolves to full commit
-  `fc0055dc4e0a316c3f83133267fbd6faaa770992`. The manifest contains source URLs and SHA-256
-  hashes for tasks, splits, DB, policy, and the three retail source interfaces.
-- Reviewed official `RetailTools`, `RetailDB`, environment construction, task split loader,
-  initial-state model and ENV evaluator. Tests compare installed retail source bytes with
-  the pinned manifest. No custom replacement retail database or rewritten tool suite exists.
-- `pyproject.toml` and `uv.lock` are the dependency authority. The old broad provider/ML/UI
-  list was replaced with Phase 1 requirements; `requirements.txt` delegates to the project.
-  τ² transitively installs LiteLLM and some ML utilities, but no model weights are downloaded.
+Cost controls include a full-policy prompt only for Policy, recent dialogue plus the
+maintained purpose, deduplicated observed reads, bounded model requests/output, and
+per-role provider usage counters. These are architectural reductions; live quality and
+dollar savings remain unmeasured.
 
-## Runtime boundaries
+Later actions for multi-order requests are queued, not approved. Each is prepared
+against current DB state and separately confirmed. Changed replies clear the queue;
+failed verification stops it. Successful writes clear stale tool facts. The native
+runner records verification even when it immediately pauses for a subsequent action.
 
-One graph, adapter and memory checkpointer belong to **one conversation**. Create all three
-again for a new task/trial. The CLI does this on startup; multiple requests from the same
-authenticated customer may continue in that session. Do not reuse a compiled graph for
-multiple customers/threads. Persistence across process restarts is not implemented.
+The experiment manifest fixes 17 development and 57 training-baseline tasks; the 40
+official test tasks remain held out. Baseline feedback used to change the system is
+development evidence. Final test execution needs a separately frozen protocol.
 
-Agents receive an allowlisted context: actual dialogue, scoped read results, current purpose
-and validation errors. They receive no task record, task ID, expected operations or oracle.
-The CLI loads a train task only to validate its ID and initial fixture. The task's original
-user instructions and evaluation criteria stay in the original pinned assets and test harness.
-All six pilots have null initial state. Non-null overrides/history explicitly fail closed.
-
-The graph contains exactly the seven proposal roles: Supervisor, Identity, Order, Policy,
-Decision/Confirmation, Action/Payment and Verification. Identity, Order and Decision use
-structured agent steps; Policy, Action/Payment and Verification have independent finding schemas. They may share a configured model, while keeping
-independent responsibilities and controlled handoffs. A model is never the authority for a
-Boolean authorization or confirmation rule.
-
-Protected reads check the adapter's authenticated identity, never an agent-supplied flag.
-Order ownership is checked before the official result is returned. One `RLock` serializes
-retail calls. Tool steps are separate from customer-response steps.
-
-The Supervisor plans once per new customer request and routes Identity, Order and Policy
-according to shared results. Authentication precedes protected reads. Policy assesses the
-request and observed order facts before Decision proposes an exact operation. Read-only
-responses and unsupported transfers finish at Decision.
-
-Decision runs signature/type/policy validation and official preconditions on a disposable
-copy. This is not an executed customer action. It saves the exact canonical arguments and
-financial consequences before pausing for approval. Confirmation uses a second Decision
-invocation, so resuming does not repeat an LLM call or tool read. No separate read, preflight,
-customer-input, confirmation, transfer or response nodes exist.
-
-An affirmative reply binds consent to the exact action and relevant user/order/product state.
-No/unclear/changed replies write nothing. Changed choices restart planning and require fresh
-approval. Action/Payment reviews the payment facts and calls the deterministic executor,
-which independently rechecks authorization, eligibility, freshness, approval and duplication.
-The unchanged official API runs on a copy; only successful writes commit that copy.
-
-Verification then re-reads the affected record and compares the actual DB with the expected
-result of the confirmed operation, computed during disposable preflight. This expectation
-comes from the customer's approved request, never from benchmark labels. Its LLM review
-cannot override a failed deterministic comparison. If a committed change cannot be verified,
-the response explicitly says so and does not retry the write. This is ordinary business
-verification, not benchmark scoring, tracing, replay, recovery or causal adjudication.
-
-All sessions and action records are in memory. Direct graph callers set `new_request=True`
-for a new customer turn; the CLI and test runner do this automatically.
-
-## Verified source nuances and limits
-
-- Task `69` begins as a laptop return inquiry, with cancellation as fallback. The real laptop
-  order `#W2417020` is pending. The tested dialogue asks for a valid cancellation reason and
-  obtains separate exact consent before cancellation.
-- Tasks `0` and `1` have different keyboard fallback preferences. The offline test doubles
-  choose different item lists; these are not universal answers embedded in runtime code.
-- Task `47` includes deliberately invalid early order references. The reference evaluator
-  logs their failures and continues. Our adapter returns a generic unavailable-order error;
-  the graph asks for the customer's corrections. The test also checks the remaining-items
-  calculation. This is not an annotation inconsistency.
-- In task `84`, the two tablets are in different delivered orders. Both are looked up. The
-  changed choice and refund method invalidate the first proposal and trigger fresh consent.
-- Task `50` has no DB mutation in its reference. ENV reward alone cannot establish transfer
-  correctness. A supplementary test verifies the real transfer API call and exact message.
-- The official pending-item modification implementation uses the last `variant` variable
-  when assigning every changed item's price/options. Multi-item pending modifications with
-  different replacement price/options are therefore blocked and should be handed to a human.
-  Overlapping pending replacement IDs are also blocked because upstream resolves them
-  sequentially. Upstream was not patched. Multi-item **exchange** remains runnable.
-- Policy says further cancellation/modification is unavailable after a pending item change.
-  Some official address/payment helpers accept any status containing `pending`; our guard
-  follows the stricter policy and requires exactly `pending`.
-- Python is currently constrained to 3.12: the pinned package imports `audioop` transitively,
-  which is removed in Python 3.13. The observed deprecation warning is upstream.
-
-## API compatibility
-
-The model factory explicitly uses Chat Completions. `RETAIL_OUTPUT_METHOD=json` requests
-JSON text and validates it locally, without sending provider-specific schema parameters.
-`json_schema` uses a non-strict dictionary schema, preserving optional fields and variable
-retail-tool argument dictionaries; it falls back for format rejections, including Groq's
-`json_validate_failed`. API authentication, network and unrelated request errors propagate.
-The CLI displays a sanitized status/code/parameter/message, excluding response generations
-and request bodies. Mock HTTP transport tests exercise the actual LangChain/OpenAI SDK
-request and error paths without credentials or paid calls. These are not live Groq runs.
-
-## LangSmith experiment visualization
-
-The user's visualization request adds optional native LangGraph/LLM tracing and four small
-SDK wrappers: scoped read, guarded execute, transfer and verification. The graph remains
-seven nodes. Runtime inputs/outputs and simulated records are visible when enabled; adapter
-objects, full fixtures, private task records and preflight scratch writes are not tool-span
-inputs. Each CLI conversation has a new thread ID, source-task label and benchmark commit.
-The same config is reused across turns and resumes. Exit flushes pending traces.
-
-The dependency was already present transitively and is now explicit in pyproject/lockfile.
-Tests disable remote tracing; local SDK and callback capture verify names, metadata,
-confirmation/duplicate guards and payload boundaries. Cloud viewing needs the user's local
-LangSmith key. See `LANGSMITH.md` for setup. This is not a claim of research trace attribution
-or an automated LangSmith benchmark evaluation.
-
-## Evaluation status
-
-Offline tests invoke the actual LangGraph graph with scripted model outputs, real fresh DBs
-and official retail tools. Evaluator-only helpers capture actual committed operations for
-the native `EnvironmentEvaluator` with strict output checking. They also compare the actual
-entire DB against a separately constructed reference DB. This ENV-only integration is not
-the official user simulator or complete benchmark scoring path.
-
-The separate `retail_benchmark` package now connects the official text `UserSimulator`
-to the same graph's customer interrupts and invokes native `evaluate_simulation(ALL)`.
-Its serial loop is a custom bridge; it does not replace or claim to run the upstream
-`Orchestrator`. Simulator guidelines are now a fifth hash-pinned asset. The harness captures
-successful official read/write/transfer results and keeps rejected reads outside native
-tool replay. Native scores, actual-DB checks and required-handoff checks remain separate.
-See `BENCHMARK.md` for the interface, output schema, tested cases and score limitations.
-
-Remaining: run live specialist/simulator dialogues and independently review the draft labels.
-No API credentials were configured in the implementation workspace, so integration trials
-used intercepted model responses. No test-split task was executed.
-Multi-request tasks are handled sequentially through customer turns; autonomous completion
-of an entire queue of subgoals has not been demonstrated with a live model.
-
-The original data guide documents future fault families. Those families and causal labels
-remain future work; none were generated in this phase.
+No recovery, fault injection, causal labels or replay framework was added.

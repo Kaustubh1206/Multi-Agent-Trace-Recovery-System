@@ -36,7 +36,7 @@ def inspect_reports(directory):
             key: report.get(key) for key in (
                 "source_task_id", "trial", "run_id", "termination_reason", "run_error",
                 "evaluation_status", "evaluation_error", "run_error_location", "native_reward", "validated_success",
-                "committed_writes", "human_transfers",
+                "committed_writes", "human_transfers", "mas_usage", "mas_call_budget", "architecture", "cohort",
             )
         }
         row.update(
@@ -151,6 +151,7 @@ def main():
                             "evaluation_status",
                             "native_reward",
                             "validated_success",
+                            "mas_usage",
                         )
                     }
                 )
@@ -158,6 +159,12 @@ def main():
                     f"  native reward={report['native_reward']}; validated_success={report['validated_success']}; "
                     f"evaluation={report['evaluation_status']}; report={args.output / (stem + '.report.json')}"
                 )
+                usage = report.get("mas_usage")
+                if usage:
+                    print(
+                        f"  MAS calls={usage['calls']}; input_tokens={usage['input_tokens']}; "
+                        f"output_tokens={usage['output_tokens']}; usage_reported={usage['responses_with_usage']}"
+                    )
                 failed = [name for name, passed in report["supplementary_checks"].items() if not passed]
                 print(f"  termination={report['termination_reason']}; failed_checks={failed}")
                 if report["run_error"] or report["evaluation_error"]:

@@ -9,6 +9,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
 
+from retail_benchmark.__main__ import inspect_reports
+
 from .support import after_write, cancellation_steps
 from .test_benchmark import REQUEST
 
@@ -87,4 +89,8 @@ def test_cli_saves_independent_trial_reports_and_native_simulations(tmp_path):
     assert reports[0]["run_id"] != reports[1]["run_id"]
     assert len(list(tmp_path.glob("*.simulation.json"))) == 2
     assert len(list(tmp_path.glob("*.final_db.json"))) == 2
-    assert len(json.loads((tmp_path / "summary.json").read_text())["trials"]) == 2
+    summary = json.loads((tmp_path / "summary.json").read_text())["trials"]
+    assert len(summary) == 2
+    assert all(row["mas_usage"]["calls"] == 6 for row in summary)
+    inspected = inspect_reports(tmp_path)["trials"]
+    assert all(row["mas_usage"]["calls"] == 6 for row in inspected)
