@@ -31,19 +31,8 @@ def policy_review():
 
 
 def after_write():
-    return [
-        (
-            "action_payment",
-            {
-                "reason": "Payment checks passed",
-                "customer_explanation": "Use the confirmed payment method",
-            },
-        ),
-        (
-            "verification",
-            {"verified": True, "reason": "Actual database matches the confirmed action"},
-        ),
-    ]
+    # Approved execution and DB verification need no LLM responses in this architecture.
+    return []
 
 
 class ScriptedAgents:

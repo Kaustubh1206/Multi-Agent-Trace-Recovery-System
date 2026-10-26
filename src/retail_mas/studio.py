@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from .data_loader import RetailDataset
 from .graph import build_graph
 from .models import AgentModels
-from .objects import PendingAction, PolicyDecision, SupervisorPlan
+from .objects import PendingAction, PolicyDecision, SupervisorPlan, ToolCall
 from .tools import RetailAdapter
 
 
@@ -52,6 +52,9 @@ def session_node(function, state, *, session):
     ):
         if current.get(key) is not None:
             current[key] = schema.model_validate(current[key])
+    current["queued_actions"] = [
+        ToolCall.model_validate(call) for call in current.get("queued_actions", [])
+    ]
     update = function(current)
     return {
         **{

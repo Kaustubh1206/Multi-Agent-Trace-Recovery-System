@@ -1,17 +1,10 @@
-"""The seven agents in the proposal. Tool checks stay inside the adapter."""
+"""Five specialist LLM roles with deterministic routing and guarded execution."""
 
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.types import interrupt
 
 from .models import ModelOutputError
-from .objects import (
-    AgentStep,
-    PaymentFinding,
-    PolicyDecision,
-    SupervisorPlan,
-    ToolCall,
-    VerificationFinding,
-)
+from .objects import AgentStep, PolicyDecision, SupervisorPlan
 from .policy import (
     IDENTITY_TOOLS,
     ORDER_TOOLS,
@@ -27,14 +20,14 @@ MAX_STEPS = 32
 MAX_TURNS = 40
 
 
-def context_for(state, adapter):
+def context_for(state, adapter, role=None):
     """Only customer dialogue and observed facts; no benchmark task/oracle."""
     return {
-        "conversation": [{"role": m.type, "text": m.content} for m in state.get("messages", [])],
+        "conversation": [{"role": m.type, "text": m.content} for m in state.get("messages", [])[-8:]],
         "customer_query": state.get("customer_query", ""),
         "authenticated_user_id": adapter.user_id,
         "purpose": state["plan"].purpose if state.get("plan") else "",
-        "observations": state.get("observations", []),
+        "observations": [] if role == "supervisor" else observed_facts(state),
         "policy_result": state["policy_result"].model_dump()
         if state.get("policy_result")
         else None,
@@ -42,7 +35,19 @@ def context_for(state, adapter):
         "handoff_request": state.get("handoff_request", ""),
         "team_write_tools": adapter.supported_write_tools,
         "continuing_request": state.get("continuing_request", False),
+        "order_finding": state.get("order_finding", ""),
     }
+
+
+def observed_facts(state):
+    """Keep the latest result for each actual read; never shorten tool result values."""
+    import json
+
+    latest = {}
+    for observation in state.get("observations", []):
+        key = json.dumps(observation["tool"], sort_keys=True)
+        latest[key] = observation
+    return list(latest.values())
 
 
 def finish(response, **updates):
@@ -69,9 +74,11 @@ def supervisor(state, *, adapter, agents, policy):
         continuing = state.get("continuing_request", False)
         observations = state.get("observations", []) if continuing else []
         handoff_request = state.get("handoff_request", "") if continuing else ""
-        clean = {            **state,
+        clean = {
+            **state,
             "observations": observations,
             "plan": state.get("plan") if continuing else None,
+            "order_finding": state.get("order_finding", "") if continuing else "",
             "policy_result": None,
             "error": None,
             "handoff_request": handoff_request,
@@ -80,7 +87,7 @@ def supervisor(state, *, adapter, agents, policy):
             "supervisor",
             SupervisorPlan,
             system_prompt("supervisor", policy),
-            context_for(clean, adapter),
+            context_for(clean, adapter, "supervisor"),
         )
         if plan.question and asks_for_action_approval(plan.question):
             plan = plan.model_copy(update={"question": ""})
@@ -89,10 +96,11 @@ def supervisor(state, *, adapter, agents, policy):
             "new_request": False,
             "continuing_request": False,
             "order_complete": False,
+            "order_finding": state.get("order_finding", "") if continuing else "",
             "observations": observations,
             "policy_result": None,
             "pending_action": None,
-            "payment_info": None,
+            "queued_actions": [],
             "verification_result": None,
             "execution_result": None,
             "confirmation": None,
@@ -107,17 +115,13 @@ def supervisor(state, *, adapter, agents, policy):
     current = {**state, **update}
     if not adapter.user_id:
         target = "identity"
-    elif not current.get("order_complete") and current["plan"].intent != "unsupported":
-        target = "order"
-    elif current.get("policy_result") is None:
-        target = "policy"
     else:
-        target = "decision"
+        target = "policy" if current["plan"].intent == "unsupported" else "order"
     return {**update, "authenticated_user_id": adapter.user_id, "next_agent": target}
 
 
 def agent_step(role, state, adapter, agents, policy, tools, allowed):
-    context = context_for(state, adapter)
+    context = context_for(state, adapter, role)
     context["available_tools"] = adapter.schemas(tools)
     for _ in range(2):
         step = agents.invoke(role, AgentStep, system_prompt(role, policy), context)
@@ -152,11 +156,13 @@ def read_facts(role, state, adapter, agents, policy, tools):
     if step.kind == "ask":
         return {**update, **ask_customer(step.text)}
     if step.kind == "complete":
-        return {**update, "order_complete": True, "next_agent": "supervisor"}
+        return {**update, "order_complete": True, "order_finding": step.text, "next_agent": "policy"}
     try:
         result = adapter.read(role, step.tool)
         observation = {"tool": step.tool.model_dump(), "result": result}
-        target = "supervisor" if role == "identity" else role
+        target = (
+            "policy" if state["plan"].intent == "unsupported" else "order"
+        ) if role == "identity" else role
     except (ValueError, TypeError) as error:
         observation = {"tool": step.tool.model_dump(), "error": str(error)}
         target = role
@@ -181,7 +187,7 @@ def policy_agent(state, *, adapter, agents, policy):
     finding = agents.invoke(
         "policy", PolicyDecision, system_prompt("policy", policy), context_for(state, adapter)
     )
-    return {"policy_result": finding, "next_agent": "supervisor"}
+    return {"policy_result": finding, "next_agent": "decision"}
 
 
 def customer_reply(state, adapter):
@@ -194,6 +200,7 @@ def customer_reply(state, adapter):
         return finish(
             "No customer reply received; no action taken.",
             pending_action=None,
+            queued_actions=[],
             awaiting_customer=None,
         )
     messages = [AIMessage(content=question), HumanMessage(content=reply)]
@@ -202,16 +209,18 @@ def customer_reply(state, adapter):
         action = state["pending_action"]
         answer = explicit_answer(reply, action.call.name)
         if answer == "yes" and adapter.confirm(action.fingerprint, reply):
-            return {**update, "confirmation": answer, "next_agent": "action_payment"}
+            executed = execute_confirmed(state, adapter)
+            return {**update, **executed, "messages": messages + executed.get("messages", [])}
         adapter.invalidate_consent()
         if answer == "no":
             result = finish(
-                "No change made.", pending_action=None, confirmation="no", awaiting_customer=None
+                "No change made.", pending_action=None, queued_actions=[], confirmation="no", awaiting_customer=None
             )
             return {**result, "messages": messages + result["messages"]}
     return {
         **update,
         "pending_action": None,
+        "queued_actions": [],
         "confirmation": None,
         "customer_query": reply,
         "new_request": True,
@@ -256,7 +265,7 @@ def decision_agent(state, *, adapter, agents, policy):
             "handoff_request": step.text,
             "order_complete": False,
             "policy_result": None,
-            "next_agent": "supervisor",
+            "next_agent": "order",
         }
     try:
         if not state["policy_result"].allowed:
@@ -265,6 +274,7 @@ def decision_agent(state, *, adapter, agents, policy):
         return {
             **update,
             "pending_action": action,
+            "queued_actions": step.following_actions,
             "handoff_request": "",
             "error": None,
             **ask_customer(confirmation_summary(action), "confirmation"),
@@ -273,62 +283,60 @@ def decision_agent(state, *, adapter, agents, policy):
         return {**update, "error": str(error), "pending_action": None, "next_agent": "decision"}
 
 
-def action_payment_agent(state, *, adapter, agents, policy):
-    """Review payment facts, then use the deterministic executor for the approved write."""
+
+def action_response(action, checked):
+    """Describe the observed simulated change without another model call."""
+    target = action.call.arguments.get("order_id", action.call.arguments.get("user_id"))
+    status = checked["record"].get("status", "updated")
+    response = f"{action.call.name} completed for {target}. Status: {status}."
+    if action.call.name == "return_delivered_order_items":
+        effect = action.financial_effect
+        response += (
+            f" Requested refund: ${effect['refund_after_return']:,.2f}."
+            f" Amount paid for remaining items: ${effect['remaining_items_paid']:,.2f}."
+            f" {effect['refund_timing']}"
+        )
+    if status in {"return requested", "exchange requested"}:
+        response += " You will receive email instructions for returning the items."
+    return response
+
+
+def execute_confirmed(state, adapter):
+    """Execute and verify one exact approved call; later queued calls need new consent."""
     action = state["pending_action"]
-    context = context_for(state, adapter)
-    profile = adapter.read(
-        "action_payment", ToolCall(name="get_user_details", arguments={"user_id": adapter.user_id})
-    )
-    context.update(
-        approved_action=action.call.model_dump(),
-        allowed_payment_methods=profile["payment_methods"],
-        validated_financial_effect=action.financial_effect,
-    )
-    finding = agents.invoke(
-        "action_payment", PaymentFinding, system_prompt("action_payment", policy), context
-    )
     try:
         result = adapter.execute(action)
-        return {
-            "payment_info": finding.model_dump(),
-            "execution_result": result,
-            "next_agent": "verification",
-        }
     except (ValueError, TypeError) as error:
+        return finish(f"Action could not be completed: {error}", error=str(error),
+                      pending_action=None, queued_actions=[], confirmation=None)
+    try:
+        checked = adapter.verify(action, result)
+    except Exception:
+        checked = {"matches_confirmed_action": False}
+    verified = checked["matches_confirmed_action"]
+    update = {
+        "execution_result": result,
+        "verification_result": {**checked, "verified": verified},
+        "pending_action": None,
+        "confirmation": None,
+        "queued_actions": [],
+    }
+    if not verified:
         return finish(
-            f"No change made: {error}", error=str(error), pending_action=None, confirmation=None
+            "The change was committed, but verification did not pass. Human review is needed; "
+            "do not repeat the action.", **update
         )
-
-
-def verification_agent(state, *, adapter, agents, policy):
-    """Check the committed DB against the confirmed action; never load benchmark answers."""
-    action = state["pending_action"]
-    checked = adapter.verify(action, state["execution_result"])
-    context = context_for(state, adapter)
-    context.update(confirmed_action=action.call.model_dump(), observed_outcome=checked)
-    finding = agents.invoke(
-        "verification", VerificationFinding, system_prompt("verification", policy), context
-    )
-    verified = checked["matches_confirmed_action"] and finding.verified
-    if verified:
-        target = action.call.arguments.get("order_id", action.call.arguments.get("user_id"))
-        status = checked["record"].get("status", "updated")
-        response = f"{action.call.name} completed for {target}. Status: {status}."
-        if action.call.name == "return_delivered_order_items":
-            effect = action.financial_effect
-            response += (
-                f" Requested refund: ${effect['refund_after_return']:,.2f}."
-                f" Amount paid for remaining items: ${effect['remaining_items_paid']:,.2f}."
-                f" {effect['refund_timing']}"
-            )
-        if status in {"return requested", "exchange requested"}:
-            response += " You will receive email instructions for returning the items."
-    else:
-        response = "The change was committed, but verification did not pass. Human review is needed; do not repeat the action."
-    return finish(
-        response,
-        verification_result={**finding.model_dump(), **checked, "verified": verified},
-        pending_action=None,
-        confirmation=None,
-    )
+    response = action_response(action, checked)
+    remaining = state.get("queued_actions", [])
+    if remaining:
+        try:
+            next_action = adapter.prepare(remaining[0])
+        except (ValueError, TypeError) as error:
+            return finish(response + f" The next request needs clarification: {error}", **update)
+        return {
+            **update,
+            "pending_action": next_action,
+            "queued_actions": remaining[1:],
+            **ask_customer(response + "\n\n" + confirmation_summary(next_action), "confirmation"),
+        }
+    return finish(response, **update)

@@ -5,7 +5,7 @@ from typing import Annotated, Any, Literal, TypedDict
 from langchain_core.messages import AnyMessage
 from langgraph.graph.message import add_messages
 
-from .objects import PendingAction, PolicyDecision, SupervisorPlan
+from .objects import PendingAction, PolicyDecision, SupervisorPlan, ToolCall
 
 
 class CustomerInput(TypedDict, total=False):
@@ -29,10 +29,11 @@ class RetailState(CustomerInput, total=False):
     handoff_request: str
     policy_result: PolicyDecision | None
     pending_action: PendingAction | None
+    queued_actions: list[ToolCall]
+    order_finding: str
     awaiting_customer: Literal["customer", "confirmation"] | None
     question: str
     confirmation: str | None
-    payment_info: dict[str, Any] | None
     execution_result: dict[str, Any] | None
     verification_result: dict[str, Any] | None
     response: str

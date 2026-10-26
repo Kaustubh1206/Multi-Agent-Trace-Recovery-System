@@ -56,7 +56,8 @@ def test_clarification_keeps_facts_but_new_request_clears_them(adapter, dataset)
     result = resume(graph, config, "The canister vacuum and air purifier, original PayPal.")
     assert adapter.write_count == 0
     assert agents.contexts[6][0] == "supervisor"
-    assert agents.contexts[6][2]["observations"] == original_observations
+    assert agents.contexts[6][2]["observations"] == []
+    assert agents.contexts[7][2]["observations"] == original_observations
     assert agents.contexts[6][2]["continuing_request"] is True
     assert "return_delivered_order_items" in agents.contexts[6][2]["team_write_tools"]
     assert "1095.55" in result["__interrupt__"][0].value["message"]
@@ -150,7 +151,7 @@ def test_return_deadline_expectation_needs_new_unqualified_approval(
     adapter, dataset, record_pilot, reply
 ):
     steps = [
-        *return_steps()[:-2],
+        *return_steps(),
         plan(),
         ("order", {"kind": "complete"}),
         policy_review(),
@@ -182,7 +183,8 @@ def test_return_deadline_expectation_needs_new_unqualified_approval(
     ][-1]
     assert correction["customer_query"] == reply
     assert "Resolve the customer's" in correction["handoff_request"]
-    assert correction["observations"]
+    assert correction["observations"] == []
+    assert any(context["observations"] for role, _, context in agents.contexts if role == "order")
     final = resume(graph, config, "Yes, please proceed with the return and refund.")
     assert adapter.write_count == 1
     assert final["verification_result"]["verified"]
@@ -196,7 +198,7 @@ def test_required_refund_deadline_can_transfer_without_an_unapproved_return(adap
     from retail_mas.nodes import TRANSFER_MESSAGE
 
     steps = [
-        *return_steps()[:-2],
+        *return_steps(),
         plan("unsupported"),
         ("policy", {
             "allowed": False,

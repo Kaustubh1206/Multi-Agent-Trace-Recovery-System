@@ -71,7 +71,7 @@ def test_cli_saves_independent_trial_reports_and_native_simulations(tmp_path):
         worker.join(timeout=5)
     assert completed.returncode == 0, completed.stdout + completed.stderr
     assert not responses
-    assert len(received) == 20
+    assert len(received) == 18
     reports = sorted(
         (json.loads(p.read_text()) for p in tmp_path.glob("*.report.json")),
         key=lambda r: r["trial"],

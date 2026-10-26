@@ -20,6 +20,7 @@ class AgentStep(Output):
     kind: Literal["tool", "ask", "complete", "respond", "propose", "transfer"]
     text: str = ""
     tool: ToolCall | None = None
+    following_actions: list[ToolCall] = Field(default_factory=list, max_length=10)
 
 
 class SupervisorPlan(Output):
@@ -32,16 +33,6 @@ class PolicyDecision(Output):
     allowed: bool
     reason: str
     constraints: list[str] = Field(default_factory=list)
-
-
-class PaymentFinding(Output):
-    reason: str
-    customer_explanation: str
-
-
-class VerificationFinding(Output):
-    verified: bool
-    reason: str
 
 
 class PendingAction(Output):

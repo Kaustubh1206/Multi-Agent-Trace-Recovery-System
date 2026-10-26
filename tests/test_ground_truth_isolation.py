@@ -16,15 +16,13 @@ def test_private_task_fields_never_reach_any_agent(adapter, dataset):
         "69",
     )
     result = resume(graph, config, "yes")
-    # All seven roles were actually invoked and checked, including the policy/payment roles.
+    # All five LLM roles were actually invoked and checked.
     assert {role for role, _, _ in agents.contexts} == {
         "supervisor",
         "identity",
         "order",
         "decision",
         "policy",
-        "action_payment",
-        "verification",
     }
     serialized = json.dumps(agents.contexts)
     for forbidden in [

@@ -73,6 +73,8 @@ def main():
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--tasks", nargs="+", help="Train task IDs only")
     mode.add_argument("--inspect", type=Path, help="Inspect saved reports; no model calls")
+    mode.add_argument("--cohort", choices=["development", "baseline"], help="Fixed train experiment cohort")
+    parser.add_argument("--dry-run", action="store_true", help="Validate and list tasks without API calls")
     parser.add_argument("--trials", type=positive, default=1)
     parser.add_argument("--seed", type=int, default=300)
     parser.add_argument("--max-turns", type=positive, default=30)
@@ -95,11 +97,22 @@ def main():
     from .runner import run_task
 
     dataset = RetailDataset()
+    if args.cohort:
+        from retail_mas.data_loader import ROOT
+
+        manifest = json.loads((ROOT / "data/manifests/retail_experiment_manifest.json").read_text())
+        if manifest["benchmark_commit"] != dataset.manifest["commit"]:
+            raise ValueError("Experiment cohort benchmark version mismatch")
+        args.tasks = manifest[f"{args.cohort}_task_ids"]
     # Validate every task before making the first paid request; test remains held out.
     for task_id in args.tasks:
         task = dataset.load_train_task(task_id)
         if task["initial_state"] is not None:
             raise NotImplementedError("Non-null task initial_state is not supported")
+    if args.dry_run:
+        print(json.dumps({"task_ids": args.tasks, "trials": args.trials,
+                          "conversations": len(args.tasks) * args.trials}, indent=2))
+        return
     args.output.mkdir(parents=True, exist_ok=True)
     reports = []
     try:
@@ -117,6 +130,7 @@ def main():
                     if args.verbose
                     else None,
                 )
+                report["cohort"] = args.cohort
                 stem = f"task-{task_id}-trial-{trial}-{simulation.id}"
                 for suffix, content in (
                     ("simulation", simulation.model_dump(mode="json")),

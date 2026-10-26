@@ -1,4 +1,4 @@
-"""Seven proposal agents; the Supervisor coordinates Identity, Order and Policy."""
+"""Five LLM roles; execution and database verification stay inside Decision."""
 
 from functools import partial
 from uuid import uuid4
@@ -40,8 +40,6 @@ def build_graph(adapter, agents, policy: str, *, server=False, wrap_node=None):
         "order": nodes.order_agent,
         "policy": nodes.policy_agent,
         "decision": nodes.decision_agent,
-        "action_payment": nodes.action_payment_agent,
-        "verification": nodes.verification_agent,
     }
     for name, function in functions.items():
         node = partial(function, **dependencies)
@@ -49,19 +47,16 @@ def build_graph(adapter, agents, policy: str, *, server=False, wrap_node=None):
     builder.add_edge(START, "supervisor")
     routes = {
         "supervisor": ["identity", "order", "policy", "decision", "end"],
-        "identity": ["identity", "supervisor", "decision", "end"],
-        "order": ["order", "supervisor", "decision", "end"],
-        "decision": ["decision", "supervisor", "action_payment", "end"],
-        "action_payment": ["verification", "end"],
+        "identity": ["identity", "order", "policy", "decision", "end"],
+        "order": ["order", "policy", "decision", "end"],
+        "decision": ["decision", "supervisor", "order", "end"],
     }
     for name, destinations in routes.items():
         builder.add_conditional_edges(
-            name,
-            next_agent,
+            name, next_agent,
             {target: END if target == "end" else target for target in destinations},
         )
-    builder.add_edge("policy", "supervisor")
-    builder.add_edge("verification", END)
+    builder.add_edge("policy", "decision")
     schemas = ["SupervisorPlan", "PendingAction", "ToolCall", "PolicyDecision"]
     serializer = JsonPlusSerializer(
         allowed_msgpack_modules=[("retail_mas.objects", name) for name in schemas]

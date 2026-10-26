@@ -40,7 +40,7 @@ def test_schema_rendering_needs_no_credentials_or_dataset(monkeypatch, sessions)
 
     monkeypatch.setattr(studio, "RetailDataset", unavailable)
     graph = asyncio.run(studio.make_graph({}, SimpleNamespace(execution_runtime=None)))
-    assert len(graph.nodes) == 8  # START plus the seven proposal roles.
+    assert len(graph.nodes) == 6  # START plus the five LLM roles.
     fields = graph.get_input_jsonschema()["properties"]
     assert "customer_query" in fields
     assert "confirmation" not in fields

@@ -60,8 +60,6 @@ def test_graph_traces_group_confirmation_resumes_and_name_all_agents(adapter, da
         "order",
         "policy",
         "decision",
-        "action_payment",
-        "verification",
     } <= names
     assert run_config("69")["metadata"]["thread_id"] != config["metadata"]["thread_id"]
 

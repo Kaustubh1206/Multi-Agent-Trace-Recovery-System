@@ -2,7 +2,7 @@ name: Retail offline tests
 
 on:
   push:
-    branches: [phase-1-retail-mas]
+    branches: [phase-1-retail-mas, custom-retail-mas]
   pull_request:
 
 permissions:

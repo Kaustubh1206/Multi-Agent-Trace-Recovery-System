@@ -394,7 +394,7 @@ def test_step_budget_prevents_unbounded_model_loops(adapter, dataset):
     assert adapter.write_count == 0
 
 
-def test_graph_has_only_the_seven_proposal_agents(adapter, dataset):
+def test_graph_has_only_the_five_custom_agents(adapter, dataset):
     from retail_mas.graph import build_graph
 
     from .support import ScriptedAgents
@@ -406,8 +406,6 @@ def test_graph_has_only_the_seven_proposal_agents(adapter, dataset):
         "order",
         "policy",
         "decision",
-        "action_payment",
-        "verification",
     }
 
 
@@ -421,7 +419,7 @@ def test_confirmation_resume_does_not_repeat_planning_or_proposal(adapter, datas
     before = [role for role, _, _ in agents.contexts]
     assert before == ["supervisor", "identity", "order", "order", "policy", "decision"]
     final = resume(graph, config, "yes")
-    assert [role for role, _, _ in agents.contexts] == before + ["action_payment", "verification"]
+    assert [role for role, _, _ in agents.contexts] == before
     assert final["verification_result"]["matches_confirmed_action"]
     assert adapter.write_count == 1
 

@@ -1,4 +1,4 @@
-"""Serial conversation bridge: official simulator → seven-agent MAS → native graders."""
+"""Serial conversation bridge: official simulator → retail MAS → native graders."""
 
 from datetime import datetime, timezone
 from time import monotonic
@@ -106,7 +106,7 @@ def run_task(
             text = result["__interrupt__"][0].value["message"] if paused else result.get("response")
             if not isinstance(text, str) or not text.strip():
                 raise ValueError("MAS produced no customer response")
-            if not paused and result.get("execution_result") is not None:
+            if adapter.write_count > len(verifications):
                 verifications.append(
                     bool((result.get("verification_result") or {}).get("verified"))
                 )
@@ -160,6 +160,10 @@ def run_task(
         "run_error": failure,
         "run_error_location": failure_location,
         "execution_mode": "offline_scripted_agents" if scripted else "api_models",
+        "architecture": "custom-retail-five",
+        "mas_usage": getattr(models, "usage", None),
+        "mas_call_budget": getattr(models, "max_calls", None),
+        "usage_scope": "MAS logical requests; provider-reported tokens only; excludes simulator and judge",
         "benchmark_commit": dataset.manifest["commit"],
         "asset_hashes": {key: value["sha256"] for key, value in dataset.manifest["assets"].items()},
         "source_hashes": {key: value["sha256"] for key, value in dataset.manifest["code"].items()},

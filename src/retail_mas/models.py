@@ -18,6 +18,7 @@ def create_model():
     return ChatOpenAI(
         model=os.getenv("RETAIL_MODEL", "gpt-6-luna"),
         reasoning_effort=os.getenv("RETAIL_REASONING_EFFORT") or None,
+        max_tokens=int(os.getenv("RETAIL_MAX_OUTPUT_TOKENS", "1024")),
         timeout=60,
         max_retries=1,
         use_responses_api=False,
@@ -72,11 +73,41 @@ def describe_model_error(error: Exception) -> str:
 class AgentModels:
     """Each role receives its own system prompt and a narrowly filtered context."""
 
-    def __init__(self, model=None, output_method=None):
+    def __init__(self, model=None, output_method=None, max_calls=None):
         self.model = model if model is not None else create_model()
+        self.max_calls = int(max_calls if max_calls is not None else os.getenv("RETAIL_MAX_MODEL_CALLS", "32"))
+        if self.max_calls < 1:
+            raise ValueError("RETAIL_MAX_MODEL_CALLS must be positive")
+        self.usage = {"calls": 0, "input_tokens": 0, "output_tokens": 0,
+                      "cached_input_tokens": 0, "responses_with_usage": 0, "per_role": {}}
         self.output_method = output_method or os.getenv("RETAIL_OUTPUT_METHOD", "json_schema")
         if self.output_method not in {"json", "json_schema"}:
             raise ValueError("RETAIL_OUTPUT_METHOD must be json or json_schema")
+
+    def call(self, role, function, messages):
+        """Count logical model requests and provider-reported tokens, including fallbacks."""
+        if self.usage["calls"] >= self.max_calls:
+            raise ModelOutputError("MAS model-call budget reached; no further model calls")
+        row = self.usage["per_role"].setdefault(role, {
+            "calls": 0, "input_tokens": 0, "output_tokens": 0,
+            "cached_input_tokens": 0, "responses_with_usage": 0,
+        })
+        self.usage["calls"] += 1
+        row["calls"] += 1
+        result = function.invoke(messages)
+        raw = result.get("raw") if isinstance(result, dict) else result
+        usage = getattr(raw, "usage_metadata", None) or {}
+        if usage:
+            values = {
+                "input_tokens": usage.get("input_tokens", 0),
+                "output_tokens": usage.get("output_tokens", 0),
+                "cached_input_tokens": (usage.get("input_token_details") or {}).get("cache_read", 0),
+                "responses_with_usage": 1,
+            }
+            for name, value in values.items():
+                row[name] += value or 0
+                self.usage[name] += value or 0
+        return result
 
     def invoke(self, role, schema, system: str, context: dict):
         messages = [SystemMessage(content=system), HumanMessage(content=json.dumps(context))]
@@ -84,10 +115,17 @@ class AgentModels:
             try:
                 # A plain schema avoids SDK-enforced strict schemas, which cannot
                 # represent our variable retail-tool argument dictionaries faithfully.
-                result = self.model.with_structured_output(
-                    schema.model_json_schema(), method="json_schema", strict=False
-                ).invoke(messages)
+                structured = self.model.with_structured_output(
+                    schema.model_json_schema(), method="json_schema", strict=False, include_raw=True
+                )
+                result = self.call(role, structured, messages)
+                if isinstance(result, dict) and "raw" in result:
+                    if result.get("parsing_error"):
+                        raise ValueError("Invalid provider structured output")
+                    result = result["parsed"]
                 return schema.model_validate(result)
+            except ModelOutputError:
+                raise
             except (NotImplementedError, ValueError, TypeError):
                 pass
             except BadRequestError as error:
@@ -97,8 +135,8 @@ class AgentModels:
             schema.model_json_schema()
         )
         for _ in range(2):
-            output = self.model.invoke(
-                [SystemMessage(content=system + "\n" + instruction), messages[1]]
+            output = self.call(
+                role, self.model, [SystemMessage(content=system + "\n" + instruction), messages[1]]
             )
             try:
                 content = output.content
