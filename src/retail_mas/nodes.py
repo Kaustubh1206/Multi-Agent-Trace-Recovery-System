@@ -214,7 +214,8 @@ def customer_reply(state, adapter):
         adapter.invalidate_consent()
         if answer == "no":
             result = finish(
-                "No change made.", pending_action=None, queued_actions=[], confirmation="no", awaiting_customer=None
+                "No further change made." if state.get("execution_result") else "No change made.",
+                pending_action=None, queued_actions=[], confirmation="no", awaiting_customer=None
             )
             return {**result, "messages": messages + result["messages"]}
     return {
@@ -316,6 +317,8 @@ def execute_confirmed(state, adapter):
     verified = checked["matches_confirmed_action"]
     update = {
         "execution_result": result,
+        "observations": [],
+        "order_finding": "",
         "verification_result": {**checked, "verified": verified},
         "pending_action": None,
         "confirmation": None,

@@ -77,6 +77,9 @@ def test_cli_saves_independent_trial_reports_and_native_simulations(tmp_path):
         key=lambda r: r["trial"],
     )
     assert len(reports) == 2
+    assert [r["mas_usage"]["calls"] for r in reports] == [6, 6]
+    assert [r["mas_usage"]["input_tokens"] for r in reports] == [6, 6]
+    assert [r["mas_usage"]["output_tokens"] for r in reports] == [6, 6]
     assert [r["native_reward"] for r in reports] == [1.0, 0.0]
     assert [r["committed_writes"] for r in reports] == [1, 0]
     assert [r["validated_success"] for r in reports] == [True, False]
