@@ -15,7 +15,7 @@ from retail_mas.models import AgentModels, ModelOutputError
 from retail_mas.objects import PolicyDecision
 from retail_mas.prompts import system_prompt
 
-from .support import ScriptedAgents, plan, policy_review, proposal, tool
+from .support import ScriptedAgents, plan, policy_review, proposal, resume, session, tool
 from .test_confirmation_language import customer_messages
 
 
@@ -149,3 +149,33 @@ def test_cohort_dry_run_needs_no_api_key_or_model_calls():
     listed = json.loads(result.stdout)
     assert len(listed["task_ids"]) == listed["conversations"] == 57
     assert listed["trials"] == 1
+
+
+def test_changed_request_discards_the_unapproved_queue(adapter, dataset):
+    steps = [
+        *queued_cancellations(),
+        plan(),
+        ("order", {"kind": "complete"}),
+        policy_review(),
+        ("decision", proposal(
+            "cancel_pending_order", order_id="#W5995614", reason="ordered by mistake"
+        )),
+    ]
+    graph, agents, config, result = session(
+        adapter, dataset, steps,
+        "Yara Muller ZIP 85041, no email. Cancel both pending orders: ordered by mistake.",
+    )
+    assert len(result["queued_actions"]) == 1
+    assert adapter.write_count == 0
+    result = resume(
+        graph, config, "Actually cancel only #W5995614. Keep #W5056519."
+    )
+    assert adapter.write_count == 0
+    assert result["pending_action"].call.arguments["order_id"] == "#W5995614"
+    assert result["queued_actions"] == []
+    resume(graph, config, "yes")
+    db = adapter.snapshot()
+    assert adapter.write_count == 1
+    assert db.orders["#W5056519"].status == "pending"
+    assert db.orders["#W5995614"].status == "cancelled"
+    assert not agents.steps

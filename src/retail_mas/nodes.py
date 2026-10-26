@@ -95,7 +95,6 @@ def supervisor(state, *, adapter, agents, policy):
             "plan": plan,
             "new_request": False,
             "continuing_request": False,
-            "order_complete": False,
             "order_finding": state.get("order_finding", "") if continuing else "",
             "observations": observations,
             "policy_result": None,
@@ -156,7 +155,7 @@ def read_facts(role, state, adapter, agents, policy, tools):
     if step.kind == "ask":
         return {**update, **ask_customer(step.text)}
     if step.kind == "complete":
-        return {**update, "order_complete": True, "order_finding": step.text, "next_agent": "policy"}
+        return {**update, "order_finding": step.text, "next_agent": "policy"}
     try:
         result = adapter.read(role, step.tool)
         observation = {"tool": step.tool.model_dump(), "result": result}
@@ -264,7 +263,6 @@ def decision_agent(state, *, adapter, agents, policy):
         return {
             **update,
             "handoff_request": step.text,
-            "order_complete": False,
             "policy_result": None,
             "next_agent": "order",
         }

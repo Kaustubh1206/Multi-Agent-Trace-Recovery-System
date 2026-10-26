@@ -24,7 +24,6 @@ class RetailState(CustomerInput, total=False):
     plan: SupervisorPlan
     authenticated_user_id: str | None
     observations: list[dict[str, Any]]
-    order_complete: bool
     next_agent: str
     handoff_request: str
     policy_result: PolicyDecision | None

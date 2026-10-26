@@ -219,3 +219,24 @@ def test_openai_configuration_sends_native_model_id_and_compatible_parameters(mo
     assert body["model"] == "gpt-6-luna"
     assert body["reasoning_effort"] == "none"
     assert "temperature" not in body
+
+
+def test_native_structured_output_preserves_real_sdk_usage():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        payload = completion('{"allowed": true, "reason": "Eligible"}').json()
+        payload["usage"] = {
+            "prompt_tokens": 10, "completion_tokens": 3, "total_tokens": 13,
+            "prompt_tokens_details": {"cached_tokens": 4},
+        }
+        return httpx.Response(200, json=payload)
+
+    agents = AgentModels(mock_chat(handler), output_method="json_schema")
+    assert agents.invoke("policy", PolicyDecision, "Policy prompt", {}).allowed
+    assert len(requests) == agents.usage["calls"] == 1
+    assert agents.usage["responses_with_usage"] == 1
+    assert agents.usage["input_tokens"] == 10
+    assert agents.usage["output_tokens"] == 3
+    assert agents.usage["cached_input_tokens"] == 4
