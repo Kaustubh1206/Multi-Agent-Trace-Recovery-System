@@ -13,6 +13,34 @@ The queue/budget/cohort checkpoint `8a2eb0f8a6339a8792086e8d74ad1f854b60ecda` pa
 [GitHub Actions run 40290986977](https://github.com/Kaustubh1206/Multi-Agent-Trace-Recovery-System/actions/runs/40290986977):
 **131 passed, 1 warning in 102.68s**; Ruff passed.
 
+Final code revision `588297b4a75c4e4e3ad0149316c98e57e52778d7` passed
+[GitHub Actions run 40291989439](https://github.com/Kaustubh1206/Multi-Agent-Trace-Recovery-System/actions/runs/40291989439):
+**133 passed, 1 warning in 94.79s**; Ruff passed. Final checks additionally cover changing
+a queued request before approval, native structured-output usage through the real SDK,
+and usage exposure in CLI batch summaries and read-only inspection.
+
+## Abbreviated offline execution example
+
+This describes the cancellation path exercised by the real-SDK local HTTP test and
+real pinned retail tools. Customer/model responses are offline fixtures:
+
+```text
+Customer: Emma Smith, ZIP 10192, no email. Cancel #W2417020: no longer needed.
+LLM roles: Supervisor → Identity → Order/Product → Policy → Decision
+MAS: Proposed cancel_pending_order ... refund $2674.40 to original gift card.
+     Proceed? Reply yes or no.
+Committed writes before approval: 0
+Customer: yes
+Python: execute exact confirmed call → verify resulting DB
+MAS: cancel_pending_order completed for #W2417020. Status: cancelled.
+Committed writes: 1
+MAS logical model requests: 6; additional model requests after approval: 0
+```
+
+The JSON summary is abbreviated above. Actual prompts show the complete prepared tool
+arguments and financial effects. The native DB result is checked independently of the
+role outputs. No live transcript or successful paid run is represented by this example.
+
 ## Evidence scope
 
 All automated tests use scripted/intercepted model responses, real pinned fixtures/tools,
